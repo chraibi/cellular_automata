@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import itertools  # for cartesian product
 import time 
+#######################################################
 MAX_STEPS = 160
 steps = range(MAX_STEPS)
 dt = 0.33  # time step
@@ -13,13 +14,16 @@ dim_x = int(height/cellSize) + 2 # add ghost cells
 OBST = np.ones( (dim_x, dim_y) , int) # obstacles/walls/boundaries
 SFF = np.empty( (dim_x, dim_y) ) # static floor field
 SFF[:] = np.Inf 
-
-DFF = np.ones( (dim_x, dim_y) ) # dynamic floor field
+#DFF = np.ones( (dim_x, dim_y) ) # dynamic floor field
+#######################################################
 
 def init_obstacles():
     pass
 
 def init_walls(exit_cells):
+    """
+    define where are the walls. Consider the exits
+    """
     OBST[0,:]  = OBST[-1,:] = OBST[:,-1] = OBST[:,0] = np.Inf
     for e in exit_cells:
         OBST[e] = 1
@@ -36,14 +40,13 @@ def init_walls(exit_cells):
 
 #     OBST[0,:]  = OBST[-1,:] = OBST[:,-1] = OBST[:,0] = np.Inf
 
-
-#holding box
+N_pedestrians = 50
+#holding box, where to distribute pedestrians
+#---------------------------------------------------
 from_x, to_x = 1, 7
 from_y, to_y = 1, 7
-
 box = [from_x, to_x, from_y, to_y]
-
-N_pedestrians = 50
+#---------------------------------------------------
 nx = to_x - from_x + 1
 ny = to_y - from_y + 1
 if N_pedestrians > nx*ny:
@@ -58,45 +61,38 @@ def init_peds(N, box, width, height, walls):
     nx = to_x - from_x + 1
     ny = to_y - from_y + 1
     PEDS = np.ones(N, int) #
-    print "box: ",from_x, to_x, from_y, to_y
-    print "nx", nx, "ny", ny, "nx*ny", nx*ny, "N", N
-    print "PEDS ", PEDS
+    # print ("box: ", from_x, to_x, from_y, to_y)
+    # print ("nx", nx, "ny", ny, "nx*ny", nx*ny, "N", N)
+    # print ("PEDS ", PEDS)
     
     EMPTY_CELLS_in_BOX = np.zeros( nx*ny - N, int) #
-    print "EMPTY_CELLS_in_BOX ", EMPTY_CELLS_in_BOX
+
     PEDS = np.hstack((PEDS,  EMPTY_CELLS_in_BOX))
-    print "hstack PEDS ", PEDS
+
     np.random.shuffle(PEDS)
-    print "shuffle PEDS ", PEDS
+
     PEDS = PEDS.reshape( (nx,ny) )
-    print "reshape PEDS ", PEDS
-    print "zeros ", dim_x-nx, dim_y-ny
+
     EMPTY_CELLS = np.zeros( (dim_x, dim_y), int )
     EMPTY_CELLS [ from_x:to_x+1, from_y:to_y+1  ] = PEDS 
-    print "EMPTY_CELLS "
-    print EMPTY_CELLS
+
 
     return EMPTY_CELLS
 
-# holdingArea_x = int(dim_x * 1) # holding area where we distribute N peds
-# holdingArea_y = int(dim_y * 0.5)
-# holdingArea = holdingArea_x*holdingArea_y
-# PEDS = np.hstack((np.ones( (holdingArea/2) ), np.zeros( (holdingArea/2 +  holdingArea%2) ) ) )
 
 cells_initialised  = [] # list of cells which have their ssf initialized
-
 exit_cells = [ (dim_x/2, dim_y-1) ]
 
-x=0
-y=0
-leftX = (x - 1 + dim_x) % dim_x
-rightX = (x + 1) % dim_x
-aboveY = (y - 1 + dim_y) % dim_y
-belowY = (y + 1) % dim_y
-print leftX 
-print (x + 1) % width;
-print (y - 1 + height) % height;
-print (y + 1) % height;
+# x=0
+# y=0
+# leftX = (x - 1 + dim_x) % dim_x
+# rightX = (x + 1) % dim_x
+# aboveY = (y - 1 + dim_y) % dim_y
+# belowY = (y + 1) % dim_y
+# print leftX 
+# print (x + 1) % width;
+# print (y - 1 + height) % height;
+# print (y + 1) % height;
 def plot_sff(walls):
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -128,6 +124,10 @@ def plot_peds(peds, walls, i):
     # print "figure: peds%.5d.png"%i
 
     
+def init_DFF():
+    """
+    """
+    return  np.ones( (dim_x, dim_y) )
 
 def update_DFF():
     """
@@ -151,8 +151,10 @@ def init_SFF():
     return SFF
 
 
-def get_neighbors(cell):  # von Neumann neighborhood
-    
+def get_neighbors(cell):
+    """
+     von Neumann neighborhood
+    """
     neighbors = []
     i = cell[0]
     j = cell[1]
@@ -208,7 +210,6 @@ def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS):
         for neighbor in get_neighbors(cell):
             # r -= probs[neighbor]
             r -=  np.exp(-kappaS*sff[neighbor])  * (1-tmp_peds[neighbor]) * prob_walls[neighbor]  # 
-            # print "neighbor", neighbor, "prob", probability[neighbor], "r" ,r, r<=0
             if r <= 0: # move to neighbor cell
                 if np.array([set(e)==set(neighbor) for e in exit_cells ] ).any(): # reached exit?
                     # print "exit=neighbor", neighbor
@@ -226,6 +227,15 @@ def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS):
     #np.copyto(peds, tmp_peds)
     return tmp_peds
 
+def print_logs(N_pedestrians, width, height, t, dt, nruns, Dt):
+    """
+    print some infos to the screen
+    """
+    print ("Simulation of %d pedestrians"%N_pedestrians)
+    print ("Simulation space (%.2f x %.2f) m^2"%(width,height))
+    print ("Simulation time: %.2f s, runs: %d"%((t*dt),nruns))
+    print ("Run time: %.2f s"%(Dt))
+    print ("Factor: %.2f s"%( dt*t/Dt/nruns ) )
 
     
 if __name__ == "__main__":
@@ -235,47 +245,36 @@ if __name__ == "__main__":
     sff = init_SFF()
     walls = init_walls(exit_cells)
     init_obstacles()
-    peds = init_peds(N_pedestrians, [from_x, to_x, from_y, to_y], width, height, walls)
-    # print PEDS
     if draw:
         plot_sff(walls)
-
     # to calculate probabilities change values of walls
-    prob_walls = np.empty_like (walls)
-    plot_walls = np.empty_like (walls)
-    # np.copyto(prob_walls, walls) 
+    prob_walls = np.empty_like (walls)   # for calculating probabilities
+    plot_walls = np.empty_like (walls)   # for ploting
+    
     prob_walls[walls != 1] = 0 # not accessible
     prob_walls[walls == 1] = 1 # accessible
     plot_walls[walls != 1] = -10 # not accessible
     plot_walls[walls == 1] = 0 # accessible
-    
-    # print "probwalls"
-    # print prob_walls
-    # print "walls"
-    # print walls
-    
-    # print "sff"
-    # print sff
-    # raw_input()
 
+    nruns = 10  # repeate simulations 
     t1 = time.time()
-    for t in steps: # time loop
-        if draw:
-            plot_peds(peds, plot_walls, t)
-        print "---------------------------------"
-        print "t: ", t, "N=", np.sum(peds)
-        print peds
-        print "---------------------------------"
-        dff = update_DFF()
-        peds = seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS)
-        
-        if not peds.any(): # everybody is out
-            break
+    tsim = 0
+    for n in range(nruns):
+        peds = init_peds(N_pedestrians, [from_x, to_x, from_y, to_y], width, height, walls)
+        dff = init_DFF()
+        for t in steps: # simulation loop
+            if draw:
+                plot_peds(peds, plot_walls, t)
 
+            print ("n: %3d ----  t: %3d |  N: %3d"%(n,t, np.sum(peds)))
+            dff = update_DFF()
+            peds = seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS)
+
+            if not peds.any(): # is everybody out?
+                break
+        tsim += t
     t2 = time.time()
-    print ("Simulation of %d pedestrians"%N_pedestrians)
-    print ("Simulation space (%.2f x %.2f) m^2"%(width,height))
-    print ("Simulation time: %.2f s"%(t*dt))
-    print ("Run time: %.2f s"%(t2-t1))
-    print ("Factor: %.2f s"%( (dt*t)/(t2-t1) ) )
+
+    print_logs(N_pedestrians, width, height, tsim, dt, nruns, t2-t1)
+    
     
