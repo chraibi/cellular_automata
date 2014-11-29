@@ -1,9 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools  # for cartesian product
-
+import time 
 MAX_STEPS = 160
 steps = range(MAX_STEPS)
+dt = 0.33  # time step
 cellSize = 0.4 # m
 width = 4 # m
 height = 4 # m
@@ -112,7 +113,6 @@ def plot_sff(walls):
 
 
 def plot_peds(peds, walls, i):
-    # dt= 0.33
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
@@ -124,7 +124,7 @@ def plot_peds(peds, walls, i):
     ax.imshow(peds+walls, cmap=cmap, vmin=-1, vmax=2,interpolation = 'nearest') # 1-peds because I want the peds to be black
     S = "t: %3.3d  |  N: %3.3d "%(i,N)
     plt.title("%6s"%S)    
-    plt.savefig("peds%.5d.png"%i)
+    plt.savefig("figs/peds%.5d.png"%i)
     # print "figure: peds%.5d.png"%i
 
     
@@ -170,11 +170,66 @@ def get_neighbors(cell):  # von Neumann neighborhood
 
     return neighbors
         
-
+def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS):
+    """
+    sequential update
+    input
+       - peds:
+       - sff:
+       - dff:
+       - prob_walls:
+       - kappaD:
+       - kappaS:
+    return
+       - new peds
+    """
+    # probability = np.exp(-kappaS*sff)  * (1-peds) * prob_walls  # *np.exp(-kappaD*dff)
+    # print probability
+    # s = sum(probability)
+    tmp_peds = np.empty_like (peds)
+    np.copyto(tmp_peds, peds) 
+    for (i,j) in itertools.product(range(1,dim_x), range(1,dim_y)):
+        cell = [i,j]
+        # print "cell", cell, "p[i,j]",peds[i,j] 
+        if peds[i,j] == 0  : continue
+        p = 0
+        probs = {}
+        for neighbor in get_neighbors(cell):
+            probability = np.exp(-kappaS*sff[neighbor])  * (1-tmp_peds[neighbor]) * prob_walls[neighbor]  # *np.exp(-kappaD*dff)
+            # p += probability[neighbor]
+            p += probability
+            probs[neighbor] = probability
+            # print neighbor, " hat prob ",probability[neighbor]
+        if p == 0:
+            continue
+        r = np.random.rand() * p
+        # print "r", r
+        # print "start update"
+        for neighbor in get_neighbors(cell):
+            # r -= probs[neighbor]
+            r -=  np.exp(-kappaS*sff[neighbor])  * (1-tmp_peds[neighbor]) * prob_walls[neighbor]  # 
+            # print "neighbor", neighbor, "prob", probability[neighbor], "r" ,r, r<=0
+            if r <= 0: # move to neighbor cell
+                if np.array([set(e)==set(neighbor) for e in exit_cells ] ).any(): # reached exit?
+                    # print "exit=neighbor", neighbor
+                    # print "cell", cell
+                    # raw_input()
+                    tmp_peds[i,j] = 0
+                else:
+                    # print "ELSE neighbor", neighbor, "prob", probability[neighbor], "r" ,r, r<=0
+                    # print "cell", cell, " (",i,j,") moves to", neighbor, "was occupied?",peds[neighbor]
+                    tmp_peds[neighbor] = 1
+                    tmp_peds[i,j] = 0
+                    # raw_input()
+                break
+        
+    #np.copyto(peds, tmp_peds)
+    return tmp_peds
 
 
     
 if __name__ == "__main__":
+    draw = 0   # plot or not
     kappaS = 1
     kappaD = 0
     sff = init_SFF()
@@ -182,8 +237,9 @@ if __name__ == "__main__":
     init_obstacles()
     peds = init_peds(N_pedestrians, [from_x, to_x, from_y, to_y], width, height, walls)
     # print PEDS
-    plot_sff(walls)
-    exit()
+    if draw:
+        plot_sff(walls)
+
     # to calculate probabilities change values of walls
     prob_walls = np.empty_like (walls)
     plot_walls = np.empty_like (walls)
@@ -193,65 +249,33 @@ if __name__ == "__main__":
     plot_walls[walls != 1] = -10 # not accessible
     plot_walls[walls == 1] = 0 # accessible
     
-    print "probwalls"
-    print prob_walls
-    print "walls"
-    print walls
+    # print "probwalls"
+    # print prob_walls
+    # print "walls"
+    # print walls
     
-    print "sff"
-    print sff
+    # print "sff"
+    # print sff
     # raw_input()
+
+    t1 = time.time()
     for t in steps: # time loop
-        plot_peds(peds, plot_walls, t)
+        if draw:
+            plot_peds(peds, plot_walls, t)
         print "---------------------------------"
         print "t: ", t, "N=", np.sum(peds)
         print peds
         print "---------------------------------"
         dff = update_DFF()
-        # probability = np.exp(-kappaS*sff)  * (1-peds) * prob_walls  # *np.exp(-kappaD*dff)
-        # print probability
-        # s = sum(probability)
-        tmp_peds = np.empty_like (peds)
-        np.copyto(tmp_peds, peds) 
-        for (i,j) in itertools.product(range(1,dim_x), range(1,dim_y)):
-            cell = [i,j]
-            # print "cell", cell, "p[i,j]",peds[i,j] 
-            if peds[i,j] == 0  : continue
-            p = 0
-            probs = {}
-            for neighbor in get_neighbors(cell):
-                probability = np.exp(-kappaS*sff[neighbor])  * (1-tmp_peds[neighbor]) * prob_walls[neighbor]  # *np.exp(-kappaD*dff)
-                # p += probability[neighbor]
-                p += probability
-                probs[neighbor] = probability
-                # print neighbor, " hat prob ",probability[neighbor]
-            if p == 0:
-                continue
-            r = np.random.rand() * p
-            # print "r", r
-            # print "start update"
-            for neighbor in get_neighbors(cell):
-                # r -= probs[neighbor]
-                r -=  np.exp(-kappaS*sff[neighbor])  * (1-tmp_peds[neighbor]) * prob_walls[neighbor]  # 
-                # print "neighbor", neighbor, "prob", probability[neighbor], "r" ,r, r<=0
-                if r <= 0: # move to neighbor cell
-                    if np.array([set(e)==set(neighbor) for e in exit_cells ] ).any(): # reached exit?
-                        # print "exit=neighbor", neighbor
-                        # print "cell", cell
-                        # raw_input()
-                        tmp_peds[i,j] = 0
-                    else:
-                        # print "ELSE neighbor", neighbor, "prob", probability[neighbor], "r" ,r, r<=0
-                        # print "cell", cell, " (",i,j,") moves to", neighbor, "was occupied?",peds[neighbor]
-                        tmp_peds[neighbor] = 1
-                        tmp_peds[i,j] = 0
-                        # raw_input()
-                    break
+        peds = seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS)
         
-        np.copyto(peds, tmp_peds)
-        # print tmp_peds
-        # raw_input()
         if not peds.any(): # everybody is out
             break
 
-    print "Simulation time: ", t
+    t2 = time.time()
+    print ("Simulation of %d pedestrians"%N_pedestrians)
+    print ("Simulation space (%.2f x %.2f) m^2"%(width,height))
+    print ("Simulation time: %.2f s"%(t*dt))
+    print ("Run time: %.2f s"%(t2-t1))
+    print ("Factor: %.2f s"%( (dt*t)/(t2-t1) ) )
+    
