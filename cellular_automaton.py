@@ -81,7 +81,7 @@ def init_peds(N, box, width, height, walls):
 
 
 cells_initialised  = [] # list of cells which have their ssf initialized
-exit_cells = [ (dim_x/2, dim_y-1) ]
+exit_cells = [ (dim_x/2, dim_y-1) ,(dim_x/2+1, dim_y-1)]
 
 # x=0
 # y=0
@@ -102,8 +102,8 @@ def plot_sff(walls):
     vect = SFF*walls
     vect[vect<-10] = np.Inf
     print vect
-    ax.imshow(vect, cmap=cmap , interpolation = 'lanczos') #  lanczos nearest
-
+    plt.imshow(vect, cmap=cmap , interpolation = 'nearest') #  lanczos nearest
+    plt.colorbar()
     plt.savefig("SFF.png")
     print "figure: SFF.png"
 
@@ -233,19 +233,20 @@ def print_logs(N_pedestrians, width, height, t, dt, nruns, Dt):
     """
     print ("Simulation of %d pedestrians"%N_pedestrians)
     print ("Simulation space (%.2f x %.2f) m^2"%(width,height))
-    print ("Simulation time: %.2f s, runs: %d"%((t*dt),nruns))
-    print ("Run time: %.2f s"%(Dt))
-    print ("Factor: %.2f s"%( dt*t/Dt/nruns ) )
+    print ("Mean Simulation time: %.2f s, runs: %d"%((t*dt)/nruns, nruns))
+    print ("Total Run time: %.2f s"%(Dt))
+    print ("Factor: %.2f s"%( dt*t/Dt ) )
 
     
 if __name__ == "__main__":
-    draw = 0   # plot or not
+    drawS = 0   # plot or not
+    drawP = 0   # plot or not
     kappaS = 1
     kappaD = 0
     sff = init_SFF()
     walls = init_walls(exit_cells)
     init_obstacles()
-    if draw:
+    if drawS:
         plot_sff(walls)
     # to calculate probabilities change values of walls
     prob_walls = np.empty_like (walls)   # for calculating probabilities
@@ -263,10 +264,10 @@ if __name__ == "__main__":
         peds = init_peds(N_pedestrians, [from_x, to_x, from_y, to_y], width, height, walls)
         dff = init_DFF()
         for t in steps: # simulation loop
-            if draw:
+            if drawP:
                 plot_peds(peds, plot_walls, t)
 
-            print ("n: %3d ----  t: %3d |  N: %3d"%(n,t, np.sum(peds)))
+                print ("n: %3d ----  t: %3d |  N: %3d"%(n,t, np.sum(peds)))
             dff = update_DFF()
             peds = seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS)
 
