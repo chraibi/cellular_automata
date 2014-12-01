@@ -16,9 +16,24 @@ SFF = np.empty( (dim_x, dim_y) ) # static floor field
 SFF[:] = np.Inf 
 #DFF = np.ones( (dim_x, dim_y) ) # dynamic floor field
 #######################################################
+import logging, types, argparse
+
+logfile='log.dat'
+logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+def getParserArgs():
+    parser = argparse.ArgumentParser(description='Cellular Automaton. Floor Field Model [Burstedde2001] Simulation of pedestrian dynamics using a two-dimensional cellular automaton Physica A, 2001, 295, 507-525')
+    parser.add_argument("-s", "--ks", type=int , default=10, help='Sensitivity parameter for the  Static Floor Field (default 10)')
+    parser.add_argument("-d", "--kd", type=int , default=0, help='Sensitivity parameter for the  Dynamic Floor Field (default 0)')
+    parser.add_argument("-n", "--numPeds", type=int , default=10, help='Number of agents (default 10)')
+    parser.add_argument("-p", "--plotS", type=int , default=0, help='Plot Static Floor Field (default 0)')
+    parser.add_argument("-P", "--PlotP", type=int , default=0, help='Plot Pedestrians (default 0)')
+    parser.add_argument("-l", "--log" , type=argparse.FileType('w'), default='log.dat', help="log file (default log.dat)")
+    args = parser.parse_args()
+    return args
 
 def init_obstacles():
     pass
+
 
 def init_walls(exit_cells):
     """
@@ -27,30 +42,26 @@ def init_walls(exit_cells):
     OBST[0,:]  = OBST[-1,:] = OBST[:,-1] = OBST[:,0] = np.Inf
     for e in exit_cells:
         OBST[e] = 1
-    print "walls"
-    print OBST
+    # print "walls"
+    # print OBST
     return OBST
 
-# def init_exits(exit_cells):
-#     """
-#     needed for ploting
-#     """
-#     exits =  = np.ones( (dim_x, dim_y) ) # 
-#     for e in exit_cells:
-
-#     OBST[0,:]  = OBST[-1,:] = OBST[:,-1] = OBST[:,0] = np.Inf
-
-N_pedestrians = 50
-#holding box, where to distribute pedestrians
-#---------------------------------------------------
-from_x, to_x = 1, 7
-from_y, to_y = 1, 7
-box = [from_x, to_x, from_y, to_y]
-#---------------------------------------------------
-nx = to_x - from_x + 1
-ny = to_y - from_y + 1
-if N_pedestrians > nx*ny:
-    N_pedestrians = nx*ny
+def check_N_pedestrians(box, N_pedestrians):
+    """
+    check ion <N_pedestrian> is too big. if so change it to fit in <box>
+    """
+    #holding box, where to distribute pedestrians
+    #---------------------------------------------------
+    from_x, to_x = box[0], box[1]
+    from_y, to_y = box[2], box[3]
+    #---------------------------------------------------
+    nx = to_x - from_x + 1
+    ny = to_y - from_y + 1
+    if N_pedestrians > nx*ny:
+        logging.warning("N_pedestrians (%d) is too large (max. %d). Set to max."%(N_pedestrians, nx*ny))
+        N_pedestrians = nx*ny
+        
+    return N_pedestrians
 
 def init_peds(N, box, width, height, walls):
     """
@@ -60,39 +71,18 @@ def init_peds(N, box, width, height, walls):
     from_y, to_y = box[2:]
     nx = to_x - from_x + 1
     ny = to_y - from_y + 1
-    PEDS = np.ones(N, int) #
-    # print ("box: ", from_x, to_x, from_y, to_y)
-    # print ("nx", nx, "ny", ny, "nx*ny", nx*ny, "N", N)
-    # print ("PEDS ", PEDS)
-    
-    EMPTY_CELLS_in_BOX = np.zeros( nx*ny - N, int) #
-
-    PEDS = np.hstack((PEDS,  EMPTY_CELLS_in_BOX))
-
-    np.random.shuffle(PEDS)
-
-    PEDS = PEDS.reshape( (nx,ny) )
-
-    EMPTY_CELLS = np.zeros( (dim_x, dim_y), int )
-    EMPTY_CELLS [ from_x:to_x+1, from_y:to_y+1  ] = PEDS 
-
-
+    PEDS = np.ones(N, int) # pedestrians    
+    EMPTY_CELLS_in_BOX = np.zeros( nx*ny - N, int) # the rest of cells in the box
+    PEDS = np.hstack((PEDS,  EMPTY_CELLS_in_BOX)) # put 0s and 1s together
+    np.random.shuffle(PEDS) # shuffle them
+    PEDS = PEDS.reshape( (nx,ny) ) # reshape to a box
+    EMPTY_CELLS = np.zeros( (dim_x, dim_y), int ) # this is the simulation space
+    EMPTY_CELLS [ from_x:to_x+1, from_y:to_y+1  ] = PEDS # put in the box 
     return EMPTY_CELLS
-
 
 cells_initialised  = [] # list of cells which have their ssf initialized
 exit_cells = [ (dim_x/2, dim_y-1) ,(dim_x/2+1, dim_y-1)]
 
-# x=0
-# y=0
-# leftX = (x - 1 + dim_x) % dim_x
-# rightX = (x + 1) % dim_x
-# aboveY = (y - 1 + dim_y) % dim_y
-# belowY = (y + 1) % dim_y
-# print leftX 
-# print (x + 1) % width;
-# print (y - 1 + height) % height;
-# print (y + 1) % height;
 def plot_sff(walls):
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -171,7 +161,24 @@ def get_neighbors(cell):
         neighbors.append( (i, j-1) )
 
     return neighbors
-        
+
+def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS):
+    """
+    sequential update
+    input
+    - peds:
+    - sff:
+    - dff:
+    - prob_walls:
+   - kappaD:
+   - kappaS:
+   return
+   - new peds
+   """
+
+    probability = np.exp(-kappaS*sff)  * (1-peds) * prob_walls  # *np.exp(-kappaD*dff)
+    s = sum(probability)
+    
 def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS):
     """
     sequential update
@@ -185,46 +192,35 @@ def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS):
     return
        - new peds
     """
-    # probability = np.exp(-kappaS*sff)  * (1-peds) * prob_walls  # *np.exp(-kappaD*dff)
-    # print probability
-    # s = sum(probability)
-    tmp_peds = np.empty_like (peds)
+
+    tmp_peds = np.empty_like (peds) # temporary cells
     np.copyto(tmp_peds, peds) 
-    for (i,j) in itertools.product(range(1,dim_x), range(1,dim_y)):
-        cell = [i,j]
-        # print "cell", cell, "p[i,j]",peds[i,j] 
-        if peds[i,j] == 0  : continue
+    for (i,j) in itertools.product(range(1,dim_x), range(1,dim_y)): # walk through all cells in geometry
+        if peds[i,j] == 0  : continue 
         p = 0
         probs = {}
-        for neighbor in get_neighbors(cell):
-            probability = np.exp(-kappaS*sff[neighbor])  * (1-tmp_peds[neighbor]) * prob_walls[neighbor]  # *np.exp(-kappaD*dff)
-            # p += probability[neighbor]
+        cell = [i,j]
+        for neighbor in get_neighbors(cell): # get the sum of probabilities 
+            probability = np.exp(-kappaS*sff[neighbor]) * np.exp(-kappaD*dff[neighbor])  * (1-tmp_peds[neighbor]) * prob_walls[neighbor] 
             p += probability
             probs[neighbor] = probability
-            # print neighbor, " hat prob ",probability[neighbor]
-        if p == 0:
+            
+        if p == 0: # cell can not move
             continue
-        r = np.random.rand() * p
-        # print "r", r
-        # print "start update"
-        for neighbor in get_neighbors(cell):
-            # r -= probs[neighbor]
-            r -=  np.exp(-kappaS*sff[neighbor])  * (1-tmp_peds[neighbor]) * prob_walls[neighbor]  # 
-            if r <= 0: # move to neighbor cell
-                if np.array([set(e)==set(neighbor) for e in exit_cells ] ).any(): # reached exit?
-                    # print "exit=neighbor", neighbor
-                    # print "cell", cell
-                    # raw_input()
-                    tmp_peds[i,j] = 0
-                else:
-                    # print "ELSE neighbor", neighbor, "prob", probability[neighbor], "r" ,r, r<=0
-                    # print "cell", cell, " (",i,j,") moves to", neighbor, "was occupied?",peds[neighbor]
-                    tmp_peds[neighbor] = 1
-                    tmp_peds[i,j] = 0
-                    # raw_input()
-                break
         
-    #np.copyto(peds, tmp_peds)
+        if np.array([set(e)==set(cell) for e in exit_cells ] ).any(): # cell reached exit?
+            tmp_peds[i,j] = 0 # remove cell from exit
+            continue
+       
+        r = np.random.rand() * p
+        # print ("start update")
+        for neighbor in get_neighbors(cell):
+            r -=  np.exp(-kappaS*sff[neighbor]) * np.exp(-kappaD*dff[neighbor]) * (1-tmp_peds[neighbor]) * prob_walls[neighbor]  #todo this is calculated twice 
+            if r <= 0: # move to neighbor cell
+                tmp_peds[neighbor] = 1
+                tmp_peds[i,j] = 0
+                break
+            
     return tmp_peds
 
 def print_logs(N_pedestrians, width, height, t, dt, nruns, Dt):
@@ -233,16 +229,26 @@ def print_logs(N_pedestrians, width, height, t, dt, nruns, Dt):
     """
     print ("Simulation of %d pedestrians"%N_pedestrians)
     print ("Simulation space (%.2f x %.2f) m^2"%(width,height))
-    print ("Mean Simulation time: %.2f s, runs: %d"%((t*dt)/nruns, nruns))
+    print ("SFF:  %.2f | DFF: %.2f"%(kappaS, kappaD))
+    print ("Mean Evacuation time: %.2f s, runs: %d"%((t*dt)/nruns, nruns))
     print ("Total Run time: %.2f s"%(Dt))
     print ("Factor: %.2f s"%( dt*t/Dt ) )
 
     
 if __name__ == "__main__":
-    drawS = 0   # plot or not
-    drawP = 0   # plot or not
-    kappaS = 1
-    kappaD = 0
+    args = getParserArgs() # get arguments
+    # init parameters
+    
+    drawS = args.plotS   # plot or not
+    drawP = args.PlotP   # plot or not
+    kappaS = args.ks
+    kappaD = args.kd
+    N_pedestrians = args.numPeds
+    from_x, to_x = 1, 7 # todo parse this too
+    from_y, to_y = 1, 7# todo parse this too
+    box = [from_x, to_x, from_y, to_y]
+    N_pedestrians = check_N_pedestrians(box, N_pedestrians)
+    
     sff = init_SFF()
     walls = init_walls(exit_cells)
     init_obstacles()
@@ -257,7 +263,7 @@ if __name__ == "__main__":
     plot_walls[walls != 1] = -10 # not accessible
     plot_walls[walls == 1] = 0 # accessible
 
-    nruns = 10  # repeate simulations 
+    nruns = 1  # repeate simulations 
     t1 = time.time()
     tsim = 0
     for n in range(nruns):
@@ -266,8 +272,8 @@ if __name__ == "__main__":
         for t in steps: # simulation loop
             if drawP:
                 plot_peds(peds, plot_walls, t)
-
-                print ("n: %3d ----  t: %3d |  N: %3d"%(n,t, np.sum(peds)))
+                print ("\tn: %3d ----  t: %3d |  N: %3d"%(n,t, np.sum(peds)))
+                
             dff = update_DFF()
             peds = seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS)
 
