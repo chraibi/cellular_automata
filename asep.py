@@ -79,7 +79,7 @@ def plot_cells(state_cells, walls_inf, i):
     N = sum(state_cells)
     text = "t: %3.3d | n: %d\n" % (i, N)
     plt.title("%20s" % text, rotation=0, fontsize=10, verticalalignment='bottom')
-    figure_name = os.path.join('pngs', u'peds{0:.5d}.png'.format(i))
+    figure_name = os.path.join('pngs', 'peds%.3d.png' % i)
     plt.savefig(figure_name, dpi=100, facecolor='lightgray')
 
 

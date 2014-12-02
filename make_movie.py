@@ -3,7 +3,7 @@ import os
 
 def make_movie(direct):
     files = os.path.join(direct, '*.png')
-    cmd = '"mf://%s" % files -mf w=800:h=600:fps=25:type=png -ovc lavc -lavcopts vcodec=mpeg4 -oac copy -o output.avi'
+    cmd = '"mf://%s" -mf w=800:h=600:fps=2:type=png -ovc lavc -lavcopts vcodec=mpeg4 -oac copy -o output.avi'%files
     os.system("mencoder %s" % cmd)
 
 
