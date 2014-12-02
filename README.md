@@ -1,5 +1,3 @@
-### How to submit
-
 Implementation of some known cellular automata. Work in progress ...
 
 * models
@@ -18,6 +16,7 @@ Implementation of some known cellular automata. Work in progress ...
   - *todo*: implement sequential update with it all variants.
 
 * How to use
+
 run
 
 ```
