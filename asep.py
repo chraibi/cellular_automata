@@ -11,14 +11,14 @@ logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s - 
 
 def get_parser_args():
     parser = argparse.ArgumentParser(description='ASEP - TASEP')
-    parser.add_argument("-n", "--np", type=int, default=10, help='number of agents (default 10)')
-    parser.add_argument("-N", "--nr", type=int, default=1, help='number of runs (default 1)')
-    parser.add_argument("-m", "--ms", type=int, default=100, help='max simulation steps (default 100)')
-    parser.add_argument("-p", "--plotP", action='store_const', const=1, default=0, help='plot Pedestrians')
-    parser.add_argument("-r", "--shuffle", action='store_const', const=1, default=0, help='random shuffle')
-    parser.add_argument("-v", "--reverse", action='store_const', const=1, default=0, help='reverse sequential update')
-    parser.add_argument("-l", "--log", type=argparse.FileType('w'), default='log.dat',
-                        help="log file (default log.dat)")
+    parser.add_argument('-n', '--np', type=int, default=10, help='number of agents (default 10)')
+    parser.add_argument('-N', '--nr', type=int, default=1, help='number of runs (default 1)')
+    parser.add_argument('-m', '--ms', type=int, default=100, help='max simulation steps (default 100)')
+    parser.add_argument('-p', '--plotP', action='store_const', const=1, default=0, help='plot Pedestrians')
+    parser.add_argument('-r', '--shuffle', action='store_const', const=1, default=0, help='random shuffle')
+    parser.add_argument('-v', '--reverse', action='store_const', const=1, default=0, help='reverse sequential update')
+    parser.add_argument('-l', '--log', type=argparse.FileType('w'), default='log.dat',
+                        help='log file (default log.dat)')
     args = parser.parse_args()
     return args
 
