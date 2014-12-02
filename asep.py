@@ -84,33 +84,33 @@ def boundary(boundary_cells):
     boundary_cells[-1] = boundary_cells[1]
     return boundary_cells
 
-def asep_parallel(cells):
-    assert isinstance(cells, np.ndarray)
-    cells = boundary(cells)
-    center = cells[1:-1]
-    left = cells[0:-2]
-    right = cells[2:]
-    ones = (center == 1)
-    zeros = (center == 0)
-    result = np.copy(center)
-    nmoves = len(left[zeros])
-    result[zeros] = left[zeros]
-    result[ones] = right[ones]
-    return result, nmoves
+# def asep_parallel(cells):
+#     assert isinstance(cells, np.ndarray)
+#     cells = boundary(cells)
+#     center = cells[1:-1]
+#     left = cells[0:-2]
+#     right = cells[2:]
+#     ones = (center == 1)
+#     zeros = (center == 0)
+#     result = np.copy(center)
+#     nmoves = len(left[zeros])
+#     result[zeros] = left[zeros]
+#     result[ones] = right[ones]
+#     return result, nmoves
 
-# def asep_parallel(actual_cells):
-# neighbors = np.roll(actual_cells, -1)
-# assert isinstance(actual_cells, np.ndarray)
-#     dim = len(actual_cells)
-#     num_move = 0
-#     tmp_cells = np.zeros(dim)
-#     for i, j in enumerate(actual_cells):
-#         if j and not neighbors[i]:
-#             tmp_cells[i], tmp_cells[(i + 1) % dim] = 0, 1
-#             num_move += 1
-#         elif j:
-#             tmp_cells[i] = 1
-#     return tmp_cells, num_move
+def asep_parallel(actual_cells):
+    neighbors = np.roll(actual_cells, -1)
+    assert isinstance(actual_cells, np.ndarray)
+    dim = len(actual_cells)
+    num_move = 0
+    tmp_cells = np.zeros(dim)
+    for i, j in enumerate(actual_cells):
+        if j and not neighbors[i]:
+            tmp_cells[i], tmp_cells[(i + 1) % dim] = 0, 1
+            num_move += 1
+        elif j:
+            tmp_cells[i] = 1
+    return tmp_cells, num_move
 
 
 if __name__ == "__main__":
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     cellSize = 0.4  # m
     max_velocity = 1.2  # m/s
     dt = cellSize / max_velocity  # time step
-    width = 3  # 40 m
+    width = 40  # 40 m
     n_cells = int(width / cellSize)  # number of cells
     if N_pedestrians >= n_cells:
         N_pedestrians = n_cells - 1

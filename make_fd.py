@@ -3,7 +3,7 @@ import subprocess
 import matplotlib.pyplot as plt
 
 # ----------------------------------------
-num_runs = 30
+num_runs = 10
 max_pedestrians = 120
 sim_steps = 1000
 pedestrians = range(1, max_pedestrians)
