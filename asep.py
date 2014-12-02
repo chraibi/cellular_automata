@@ -29,7 +29,7 @@ def init_cells(num_peds, num_cells):
     """
     if num_peds > num_cells:
         num_peds = num_cells
-        
+
     cells = np.ones(num_peds, int)  # pedestrians
     zero_cells = np.zeros(num_cells - num_peds, int)  # the rest of cells in the box
     cells = np.hstack((cells, zero_cells))  # put 0s and 1s together
@@ -60,7 +60,7 @@ def plot_cells(state_cells, walls_inf, i):
     plt.savefig("figs/peds%.5d.png" % i, dpi=100, facecolor='lightgray')
 
 
-def print_logs(num_pedestrians,  system_width, simulation_steps, evac_time, total_runtime, nruns, vel, d):
+def print_logs(num_pedestrians, system_width, simulation_steps, evac_time, total_runtime, nruns, vel, d):
     """
     print some information to the screen
     :rtype : none
@@ -76,19 +76,41 @@ def print_logs(num_pedestrians,  system_width, simulation_steps, evac_time, tota
     print('--------------------------')
 
 
-def asep_parallel(actual_cells):
-    neighbors = np.roll(actual_cells, -1)
-    assert isinstance(actual_cells, np.ndarray)
-    dim = len(actual_cells)
-    num_move = 0
-    tmp_cells = np.zeros(dim)
-    for i, j in enumerate(actual_cells):
-        if j and not neighbors[i]:
-            tmp_cells[i], tmp_cells[(i + 1) % dim] = 0, 1
-            num_move += 1
-        elif j:
-            tmp_cells[i] = 1
-    return tmp_cells, num_move
+# http://stackoverflow.com/questions/27239173/numpy-vectorize-a-parallel-update
+def boundary(boundary_cells):
+    """enforce boundary conditions"""
+    boundary_cells = np.concatenate([[0], boundary_cells, [0]])  # add padding cells
+    boundary_cells[0] = boundary_cells[-2]
+    boundary_cells[-1] = boundary_cells[1]
+    return boundary_cells
+
+def asep_parallel(cells):
+    assert isinstance(cells, np.ndarray)
+    cells = boundary(cells)
+    center = cells[1:-1]
+    left = cells[0:-2]
+    right = cells[2:]
+    ones = (center == 1)
+    zeros = (center == 0)
+    result = np.copy(center)
+    num_move = len(left[zeros])
+    result[zeros] = left[zeros]
+    result[ones] = right[ones]
+    return result, num_move
+
+# def asep_parallel(actual_cells):
+# neighbors = np.roll(actual_cells, -1)
+# assert isinstance(actual_cells, np.ndarray)
+#     dim = len(actual_cells)
+#     num_move = 0
+#     tmp_cells = np.zeros(dim)
+#     for i, j in enumerate(actual_cells):
+#         if j and not neighbors[i]:
+#             tmp_cells[i], tmp_cells[(i + 1) % dim] = 0, 1
+#             num_move += 1
+#         elif j:
+#             tmp_cells[i] = 1
+#     return tmp_cells, num_move
 
 
 if __name__ == "__main__":
@@ -105,7 +127,7 @@ if __name__ == "__main__":
     cellSize = 0.4  # m
     max_velocity = 1.2  # m/s
     dt = cellSize / max_velocity  # time step
-    width = 40  # m
+    width = 3  # 40 m
     n_cells = int(width / cellSize)  # number of cells
     if N_pedestrians >= n_cells:
         N_pedestrians = n_cells - 1
@@ -119,13 +141,13 @@ if __name__ == "__main__":
     walls = np.ones(n_cells)
     velocities = []  # velocities over all runs
     for n in range(num_runs):
-        cells = init_cells(N_pedestrians, n_cells)
+        actual_cells = init_cells(N_pedestrians, n_cells)
         velocity = 0
         for step in steps:  # simulation loop
             if drawP:
-                plot_cells(cells, walls, step)
+                plot_cells(actual_cells, walls, step)
 
-            cells, num_moves = asep_parallel(cells)
+            actual_cells, num_moves = asep_parallel(actual_cells)
             v = num_moves * max_velocity / float(N_pedestrians)
             velocity += v
 
@@ -135,4 +157,4 @@ if __name__ == "__main__":
         print ('\t run: %3d ----  vel: %.2f |  den: %.2f' % (n, velocity, density))
     t2 = time.time()
     mean_velocity = np.mean(velocities)
-    print_logs(N_pedestrians, width, max_steps, simulation_time, t2-t1, num_runs, mean_velocity, density)
+    print_logs(N_pedestrians, width, max_steps, simulation_time, t2 - t1, num_runs, mean_velocity, density)
