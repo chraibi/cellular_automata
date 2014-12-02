@@ -93,10 +93,10 @@ def asep_parallel(cells):
     ones = (center == 1)
     zeros = (center == 0)
     result = np.copy(center)
-    num_move = len(left[zeros])
+    nmoves = len(left[zeros])
     result[zeros] = left[zeros]
     result[ones] = right[ones]
-    return result, num_move
+    return result, nmoves
 
 # def asep_parallel(actual_cells):
 # neighbors = np.roll(actual_cells, -1)
