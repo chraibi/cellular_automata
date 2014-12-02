@@ -4,16 +4,17 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import time
 import logging
 import argparse
+import os
 
 logfile = 'log.dat'
 logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
 
 def get_parser_args():
     parser = argparse.ArgumentParser(description='ASEP - TASEP')
     parser.add_argument('-n', '--np', type=int, default=10, help='number of agents (default 10)')
     parser.add_argument('-N', '--nr', type=int, default=1, help='number of runs (default 1)')
     parser.add_argument('-m', '--ms', type=int, default=100, help='max simulation steps (default 100)')
+    parser.add_argument('-w', '--width', type=int, default=50, help='max simulation steps (default 50)')
     parser.add_argument('-p', '--plotP', action='store_const', const=1, default=0, help='plot Pedestrians')
     parser.add_argument('-r', '--shuffle', action='store_const', const=1, default=0, help='random shuffle')
     parser.add_argument('-v', '--reverse', action='store_const', const=1, default=0, help='reverse sequential update')
@@ -40,6 +41,9 @@ def init_cells(num_peds, num_cells):
 def plot_cells(state_cells, walls_inf, i):
     """
     plot the actual state of the cells. we need to make 'bad' walls to better visualize the cells
+    :param state_cells: state of the cells
+    :param walls_inf: walls for visualisation purposes
+    :param i: index for figures
     """
     walls_inf = walls_inf * np.Inf
     tmp_cells = np.vstack((walls_inf, state_cells))
@@ -47,17 +51,18 @@ def plot_cells(state_cells, walls_inf, i):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.cla()
-    cmap = plt.get_cmap("gray")
+    cmap = plt.get_cmap('gray')
     cmap.set_bad(color='k', alpha=0.8)
     im = ax.imshow(tmp_cells, cmap=cmap, vmin=0, vmax=1, interpolation='nearest')
     divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="1%", pad=0.1)
+    cax = divider.append_axes('right', size='1%', pad=0.1)
     plt.colorbar(im, cax=cax, ticks=[0, 1])
     ax.set_axis_off()
     N = sum(state_cells)
     text = "t: %3.3d | n: %d\n" % (i, N)
     plt.title("%20s" % text, rotation=0, fontsize=10, verticalalignment='bottom')
-    plt.savefig("figs/peds%.5d.png" % i, dpi=100, facecolor='lightgray')
+    figure_name = os.path.join('pngs', u'peds{0:.5d}.png'.format(i))
+    plt.savefig(figure_name, dpi=100, facecolor='lightgray')
 
 
 def print_logs(num_pedestrians, system_width, simulation_steps, evac_time, total_runtime, nruns, vel, d):
@@ -78,27 +83,44 @@ def print_logs(num_pedestrians, system_width, simulation_steps, evac_time, total
 
 # http://stackoverflow.com/questions/27239173/numpy-vectorize-a-parallel-update
 def boundary(boundary_cells):
-    """enforce boundary conditions"""
+    """enforce boundary conditions
+    :rtype : np.ndarray
+    """
     boundary_cells = np.concatenate([[0], boundary_cells, [0]])  # add padding cells
     boundary_cells[0] = boundary_cells[-2]
     boundary_cells[-1] = boundary_cells[1]
     return boundary_cells
 
-# def asep_parallel(cells):
-#     assert isinstance(cells, np.ndarray)
-#     cells = boundary(cells)
-#     center = cells[1:-1]
-#     left = cells[0:-2]
-#     right = cells[2:]
-#     ones = (center == 1)
-#     zeros = (center == 0)
-#     result = np.copy(center)
-#     nmoves = len(left[zeros])
-#     result[zeros] = left[zeros]
-#     result[ones] = right[ones]
-#     return result, nmoves
 
-def asep_parallel(actual_cells):
+def asep_parallel(cells):
+    """
+    update of cells
+    :parameter: actual state of cells
+    :rtype : cells with new state and number of moves
+    """
+    assert isinstance(cells, np.ndarray)
+    cells = boundary(cells)
+    center = cells[1:-1]
+    left = cells[0:-2]
+    right = cells[2:]
+    ones = (center == 1)
+    zeros = (center == 0)
+    result = np.copy(center)
+    result[zeros] = left[zeros]
+    result[ones] = right[ones]
+    nmoves = sum(np.logical_xor(center, result)) / 2
+    return result, nmoves
+
+
+def asep_parallel2(actual_cells):
+    """ equivalent asep_parallel(), but without vectorisation od numpy. Less elegant, but maybe easier to understand ..
+    :param actual_cells:
+    :return: new cells and number of moves
+    """
+    """
+    :param actual_cells:
+    :return:
+    """
     neighbors = np.roll(actual_cells, -1)
     assert isinstance(actual_cells, np.ndarray)
     dim = len(actual_cells)
@@ -127,7 +149,7 @@ if __name__ == "__main__":
     cellSize = 0.4  # m
     max_velocity = 1.2  # m/s
     dt = cellSize / max_velocity  # time step
-    width = 40  # 40 m
+    width = args.width  # in m
     n_cells = int(width / cellSize)  # number of cells
     if N_pedestrians >= n_cells:
         N_pedestrians = n_cells - 1

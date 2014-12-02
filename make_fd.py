@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 import subprocess
 import matplotlib.pyplot as plt
-
+import os
 # ----------------------------------------
 num_runs = 10
 max_pedestrians = 120
@@ -35,6 +35,7 @@ ax = fig.add_subplot(111)
 ax.cla()
 plt.subplot(211)
 plt.plot(densities, velocities, lw=2)
+plt.ylim([0, max(velocities)+0.05])
 plt.ylabel(r"$v\, [m/s]$", size=20)
 plt.xlabel(r"$\rho\, [m^{-1}]$", size=20)
 # rho vs J (J=rho*v)
@@ -45,7 +46,8 @@ plt.xlabel(r"$\rho\, [m^{-1}]$", size=20)
 plt.ylabel(r"$J\, [s^{-1}]$", size=20)
 fig.tight_layout()
 print("\n")
+
 for end in ["pdf", "png", "eps"]:
-    figure_name = "asep_fd.%s" % end
+    figure_name = os.path.join("figs", "asep_fd.%s" % end)
     print("result written in %s" % figure_name)
     plt.savefig(figure_name)
