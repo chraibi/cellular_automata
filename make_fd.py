@@ -2,30 +2,32 @@
 import subprocess
 import matplotlib.pyplot as plt
 
-#----------------------------------------
-nruns = 30
-maxpeds = 30
-npeds = range(1, maxpeds)
-stdout = open("stdout.txt","w")
-#----------------------------------------
-for n in npeds:
-    print("run asep.py with -n %3.3d -N %3.3d"%(n,nruns))
-    subprocess.call(["python", "asep.py", "-n" "%d"%n, "-N", "%d"%nruns], stdout=stdout)
-#----------------------------------------
-stdout.close()
+# ----------------------------------------
+num_runs = 30
+max_pedestrians = 120
+sim_steps = 1000
+pedestrians = range(1, max_pedestrians)
+filename = open("stdout.txt", "w")
+# ----------------------------------------
+for n in pedestrians:
+    print("run asep.py with -n %3.3d -N %3.3d -m % 3.4d" % (n, num_runs, sim_steps))
+    subprocess.call(["python", "asep.py", "-n" "%d" % n, "-N", "%d" % num_runs, "-m", "%d" % sim_steps],
+                    stdout=filename)
+# ----------------------------------------
+filename.close()
 
 velocities = []
 densities = []
 # the line should be something like this
 # N 1   mean_velocity  1.20 [m/s]   density  0.10 [1/m]
-stdout = open("stdout.txt","r")
-for line in stdout:
+filename = open("stdout.txt", "r")
+for line in filename:
     if line.startswith("N"):
         line = line.split()
         velocities.append(float(line[3]))
         densities.append(float(line[6]))
 
-stdout.close()
+filename.close()
 # -------- plot FD ----------
 # rho vs v
 fig = plt.figure()
@@ -36,7 +38,7 @@ plt.plot(densities, velocities, lw=2)
 plt.ylabel(r"$v\, [m/s]$", size=20)
 plt.xlabel(r"$\rho\, [m^{-1}]$", size=20)
 # rho vs J (J=rho*v)
-J = [r*v for (r,v) in zip(densities, velocities)]
+J = [r * v for (r, v) in zip(densities, velocities)]
 plt.subplot(212)
 plt.plot(densities, J, lw=2)
 plt.xlabel(r"$\rho\, [m^{-1}]$", size=20)
@@ -44,6 +46,6 @@ plt.ylabel(r"$J\, [s^{-1}]$", size=20)
 fig.tight_layout()
 print("\n")
 for end in ["pdf", "png", "eps"]:
-    figname = "asep_fd.%s"%end
-    print("result in %s"%figname)
-    plt.savefig(figname)
+    figure_name = "asep_fd.%s" % end
+    print("result written in %s" % figure_name)
+    plt.savefig(figure_name)
