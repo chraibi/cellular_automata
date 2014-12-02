@@ -1,5 +1,3 @@
-### How to submit
-
 Implementation of some known cellular automata. Work in progress ...
 
 * models
