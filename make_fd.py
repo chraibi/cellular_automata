@@ -28,6 +28,9 @@ for line in stdout:
 stdout.close()
 # -------- plot FD ----------
 # rho vs v
+fig = plt.figure()
+ax = fig.add_subplot(111)
+ax.cla()
 plt.subplot(211)
 plt.plot(densities, velocities, lw=2)
 plt.ylabel(r"$v\, [m/s]$", size=20)
@@ -36,9 +39,11 @@ plt.xlabel(r"$\rho\, [m^{-1}]$", size=20)
 J = [r*v for (r,v) in zip(densities, velocities)]
 plt.subplot(212)
 plt.plot(densities, J, lw=2)
-plt.ylabel(r"$v\, [m/s]$", size=20)
 plt.xlabel(r"$\rho\, [m^{-1}]$", size=20)
-
-
-
-plt.savefig("asep_fd.png")
+plt.ylabel(r"$J\, [s^{-1}]$", size=20)
+fig.tight_layout()
+print("\n")
+for end in ["pdf", "png", "eps"]:
+    figname = "asep_fd.%s"%end
+    print("result in %s"%figname)
+    plt.savefig(figname)
