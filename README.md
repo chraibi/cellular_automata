@@ -1,4 +1,5 @@
-Implementation of some known cellular automata. Work in progress ...
+Implementation of some known cellular automata. Use for academic purposes only.
+Work in progress ...
 
 * models
 
@@ -13,14 +14,14 @@ Implementation of some known cellular automata. Work in progress ...
 2. ASEP model
   - the theoretical fundamental diagram can be reproduced, see [figure](asep_fd.png). The size of the system should be reasonably high and the simulation time also.
   - *todo*: implement TASEP
-  - *todo*: implement sequential update with it all variants.
+  - *todo*: implement sequential update with all its variants.
 
 * How to use
 
 run
 
 ```
-python script -h
+python one_of_the_scripts -h
 ```
 
 to see the options.
