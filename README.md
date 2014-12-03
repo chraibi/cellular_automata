@@ -12,7 +12,7 @@ Work in progress ...
   - *todo*: implement the parallel update.
   - *todo*: read geometry from a png file. See [read_png.py](geometry/read_png.py).
 2. ASEP model
-  - the theoretical fundamental diagram can be reproduced, see [figure](asep_fd.png). The size of the system should be reasonably high and the simulation time also.
+  - the theoretical fundamental diagram can be reproduced, see [figure](figs/asep_fd.png). The size of the system should be reasonably high and the simulation time also.
   - *todo*: implement TASEP
   - *todo*: implement sequential update with all its variants.
 
