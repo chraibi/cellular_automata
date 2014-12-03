@@ -8,7 +8,7 @@ See [Video](https://www.youtube.com/watch?v=xyU8jfzUxNg&feature=youtu.be).
 1. Floor field model:
   - Different update schemes: sequential, shuffle sequential, reverse sequential.
   - visualisation of the cell states.
-  - *done*: make a video from the png's
+  - ~~done~~: make a video from the png's
   - *todo*: track cells with _id_ for further trajectory analysis.
   - *todo*: implement the dynamic floor field
   - *todo*: implement the parallel update.
