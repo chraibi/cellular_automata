@@ -1,6 +1,8 @@
 Implementation of some known cellular automata. Use for academic purposes only.
 Work in progress ...
 
+See [Video](https://www.youtube.com/watch?v=xyU8jfzUxNg&feature=youtu.be).
+
 * models
 
 1. Floor field model:
@@ -25,7 +27,3 @@ python one_of_the_scripts -h
 ``` 
 
 to see the options.
-
-Simulation of a bottleneck:
-\kappa_s=10, sequential update 
-[Video](https://www.youtube.com/watch?v=xyU8jfzUxNg&feature=youtu.be)
