@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import itertools  # for cartesian product
 import time
 import random
+import os
 #######################################################
 MAX_STEPS = 160
 steps = range(MAX_STEPS)
@@ -38,11 +39,10 @@ def get_parser_args():
     parser.add_argument('-d', '--kd', type=int, default=0,
                         help='Sensitivity parameter for the  Dynamic Floor Field (default 0)')
     parser.add_argument('-n', '--numPeds', type=int, default=10, help='Number of agents (default 10)')
-    parser.add_argument('-p', '--plotS', type=int, default=0, help='Plot Static Floor Field (default 0)')
-    parser.add_argument('-P', '--PlotP', type=int, default=0, help='Plot Pedestrians (default 0)')
-    parser.add_argument('-r', '--shuffle', type=int, default=0, help='1 for random shuffle (default 0)')
-    parser.add_argument('-v', '--reverse', type=int, default=0, help='1 for reverse sequential update (default 0)')
-    parser.add_argument('-a', '--periodic', type=int, default=0, help='1 periodic (ASEP) (default 0)')
+    parser.add_argument('-p', '--plotS', action='store_const', const=1, default=0, help='Plot Static Floor Field')
+    parser.add_argument('-P', '--PlotP', action='store_const', const=1, default=0, help='Plot Pedestrians')
+    parser.add_argument('-r', '--shuffle', action='store_const', const=1, default=0, help='random shuffle')
+    parser.add_argument('-v', '--reverse', action='store_const', const=1, default=0, help='reverse sequential update')
     parser.add_argument('-l', '--log', type=argparse.FileType('w'), default='log.dat',
                         help='log file (default log.dat)')
     args = parser.parse_args()
@@ -123,15 +123,16 @@ def plot_peds(peds, walls, i):
     ax.cla()
     cmap = plt.get_cmap("gray")
     cmap.set_bad(color='b', alpha=0.8)
-    N = sum(peds)
+    N = np.sum(peds)
+    # print N, type(N)
     # print peds+walls
     ax.imshow(peds + walls, cmap=cmap, vmin=-1, vmax=2,
               interpolation='nearest')  # 1-peds because I want the peds to be black
     S = 't: %3.3d  |  N: %3.3d ' % (i, N)
-    plt.title("%6s" % S)
-    plt.savefig('figs/peds%.5d.png' % i)
-    # print "figure: peds%.5d.png"%i
-
+    plt.title("%8s" % S)
+    figure_name = os.path.join('pngs', 'peds%.5d.png' % i) 
+    plt.savefig(figure_name)
+    
 
 def init_DFF():
     """
@@ -163,20 +164,16 @@ def init_SFF():
     return SFF
 
 
-def get_neighbors(cell, periodic=0):
+def get_neighbors(cell):
     """
      von Neumann neighborhood
     """
     neighbors = []
     i = cell[0]
     j = cell[1]
-    # print "i", i, "j", j, dim_y
+
     if i + 1 < dim_y:
-        # print "HH"
         neighbors.append((i + 1, j))
-    elif periodic:
-        # print "hh"
-        neighbors.append((0, j))
 
     if i - 1 >= 0:
         neighbors.append((i - 1, j))
@@ -186,9 +183,6 @@ def get_neighbors(cell, periodic=0):
 
     if j - 1 >= 0:
         neighbors.append((i, j - 1))
-
-    # print "periodic", periodic
-    # print neighbors
 
     return neighbors
 
@@ -240,7 +234,7 @@ def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS, shuffle, revers
         p = 0
         probs = {}
         cell = [i, j]
-        for neighbor in get_neighbors(cell, periodic):  # get the sum of probabilities
+        for neighbor in get_neighbors(cell):  # get the sum of probabilities
             probability = np.exp(-kappaS * sff[neighbor]) * np.exp(-kappaD * dff[neighbor]) * (1 - tmp_peds[neighbor]) * \
                           prob_walls[neighbor]
             p += probability
@@ -255,7 +249,7 @@ def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS, shuffle, revers
 
         r = np.random.rand() * p
         # print ("start update")
-        for neighbor in get_neighbors(cell, periodic):
+        for neighbor in get_neighbors(cell):
             r -= np.exp(-kappaS * sff[neighbor]) * np.exp(-kappaD * dff[neighbor]) * (1 - tmp_peds[neighbor]) * \
                  prob_walls[neighbor]  # todo this is calculated twice
             if r <= 0:  # move to neighbor cell
@@ -289,7 +283,6 @@ if __name__ == "__main__":
     N_pedestrians = args.numPeds
     shuffle = args.shuffle
     reverse = args.reverse
-    periodic = args.periodic
     from_x, to_x = 1, 7  # todo parse this too
     from_y, to_y = 1, 7  # todo parse this too
     box = [from_x, to_x, from_y, to_y]
