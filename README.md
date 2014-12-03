@@ -22,7 +22,11 @@ run
 
 ```
 python one_of_the_scripts -h
-```
+``` 
 
 to see the options.
 
+Simulation of a bottleneck:
+$$\kappa_s=10$$, sequential update
+YT("xyU8jfzUxNg, print = TRUE)
+[Video](https://www.youtube.com/watch?v=xyU8jfzUxNg&feature=youtu.be)
