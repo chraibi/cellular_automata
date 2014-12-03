@@ -1,5 +1,5 @@
 # Implementation of the Asymmetric Simple Exclusion Process (ASEP)
-#     Copyright (C) 2014-2015  Mohcine Chraibi
+# Copyright (C) 2014-2015  Mohcine Chraibi
 #
 #     This program is free software; you can redistribute it and/or modify
 #     it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@ import os
 
 logfile = 'log.dat'
 logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 def get_parser_args():
     parser = argparse.ArgumentParser(description='ASEP - TASEP')
@@ -76,8 +77,8 @@ def plot_cells(state_cells, walls_inf, i):
     cax = divider.append_axes('right', size='1%', pad=0.1)
     plt.colorbar(im, cax=cax, ticks=[0, 1])
     ax.set_axis_off()
-    N = sum(state_cells)
-    text = "t: %3.3d | n: %d\n" % (i, N)
+    num = sum(state_cells)
+    text = "t: %3.3d | n: %d\n" % (i, num)
     plt.title("%20s" % text, rotation=0, fontsize=10, verticalalignment='bottom')
     figure_name = os.path.join('pngs', 'peds%.3d.png' % i)
     plt.savefig(figure_name, dpi=100, facecolor='lightgray')

@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools  # for cartesian product
-import time, random
+import time
+import random
 #######################################################
 MAX_STEPS = 160
 steps = range(MAX_STEPS)
@@ -21,13 +22,14 @@ cells_initialised = []  # list of cells which have their ssf initialized
 exit_cells = [(dim_x / 2, dim_y - 1), (dim_x / 2 + 1, dim_y - 1)]
 # DFF = np.ones( (dim_x, dim_y) ) # dynamic floor field
 #######################################################
-import logging, types, argparse
+import logging
+import argparse
 
 logfile = 'log.dat'
 logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-def getParserArgs():
+def get_parser_args():
     parser = argparse.ArgumentParser(
         description='Cellular Automaton. Floor Field Model [Burstedde2001] Simulation of pedestrian dynamics '
                     'using a two-dimensional cellular automaton Physica A, 2001, 295, 507-525')
@@ -121,13 +123,13 @@ def plot_peds(peds, walls, i):
     ax.cla()
     cmap = plt.get_cmap("gray")
     cmap.set_bad(color='b', alpha=0.8)
-    N = np.sum(peds)
+    N = sum(peds)
     # print peds+walls
     ax.imshow(peds + walls, cmap=cmap, vmin=-1, vmax=2,
               interpolation='nearest')  # 1-peds because I want the peds to be black
-    S = "t: %3.3d  |  N: %3.3d " % (i, N)
+    S = 't: %3.3d  |  N: %3.3d ' % (i, N)
     plt.title("%6s" % S)
-    plt.savefig("figs/peds%.5d.png" % i)
+    plt.savefig('figs/peds%.5d.png' % i)
     # print "figure: peds%.5d.png"%i
 
 
@@ -233,7 +235,8 @@ def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS, shuffle, revers
         grid.reverse()
 
     for (i, j) in grid:  # walk through all cells in geometry
-        if peds[i, j] == 0: continue
+        if peds[i, j] == 0:
+            continue
         p = 0
         probs = {}
         cell = [i, j]
@@ -271,12 +274,12 @@ def print_logs(N_pedestrians, width, height, t, dt, nruns, Dt):
     print ("Simulation space (%.2f x %.2f) m^2" % (width, height))
     print ("SFF:  %.2f | DFF: %.2f" % (kappaS, kappaD))
     print ("Mean Evacuation time: %.2f s, runs: %d" % ((t * dt) / nruns, nruns))
-    print ("Total Run time: %.2f s" % (Dt))
-    print ("Factor: %.2f s" % ( dt * t / Dt ) )
+    print ("Total Run time: %.2f s" % Dt)
+    print ("Factor: %.2f s" % (dt * t / Dt))
 
 
 if __name__ == "__main__":
-    args = getParserArgs()  # get arguments
+    args = get_parser_args()  # get arguments
     # init parameters
 
     drawS = args.plotS  # plot or not
@@ -316,7 +319,7 @@ if __name__ == "__main__":
         for t in steps:  # simulation loop
             if drawP:
                 plot_peds(peds, plot_walls, t)
-                print ("\tn: %3d ----  t: %3d |  N: %3d" % (n, t, np.sum(peds)))
+                print ('\tn: %3d ----  t: %3d |  N: %3d' % (n, t, int(np.sum(peds))))
 
             dff = update_DFF()
             peds = seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS, shuffle, reverse)
@@ -327,5 +330,3 @@ if __name__ == "__main__":
     t2 = time.time()
 
     print_logs(N_pedestrians, width, height, tsim, dt, nruns, t2 - t1)
-    
-    
