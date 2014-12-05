@@ -20,6 +20,15 @@
 import subprocess
 import matplotlib.pyplot as plt
 import os
+
+from sys import argv
+
+if len(argv) ==1: # no input is provided
+    program =  "asep_fast.py"  # default program to use
+else:
+    program =  argv[1]
+
+print("%s starts with %s" % (argv[0], program))
 # ----------------------------------------
 num_runs = 10
 max_pedestrians = 120
@@ -28,8 +37,8 @@ pedestrians = range(1, max_pedestrians)
 filename = open("stdout.txt", "w")
 # ----------------------------------------
 for n in pedestrians:
-    print("run asep.py with -n %3.3d -N %3.3d -m % 3.4d" % (n, num_runs, sim_steps))
-    subprocess.call(["python", "asep.py", "-n" "%d" % n, "-N", "%d" % num_runs, "-m", "%d" % sim_steps],
+    print("run %s with num_peds %3.3d num_runs %3.3d steps % 3.4d" % (program, n, num_runs, sim_steps))
+    subprocess.call(["python", program, "-n" "%d" % n, "-N", "%d" % num_runs, "-m", "%d" % sim_steps],
                     stdout=filename)
 # ----------------------------------------
 filename.close()

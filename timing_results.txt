@@ -1,0 +1,2 @@
+python make_fd.py asep_fast.py: 	0:56.71 real, 	52.12 user, 	4.03 sys
+python make_fd.py asep_slow.py: 	1:15.42 real, 	70.55 user, 	4.23 sys

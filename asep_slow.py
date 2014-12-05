@@ -33,7 +33,7 @@ def get_parser_args():
     parser.add_argument('-n', '--np', type=int, default=10, help='number of agents (default 10)')
     parser.add_argument('-N', '--nr', type=int, default=1, help='number of runs (default 1)')
     parser.add_argument('-m', '--ms', type=int, default=100, help='max simulation steps (default 100)')
-    parser.add_argument('-w', '--width', type=int, default=50, help='max simulation steps (default 50)')
+    parser.add_argument('-w', '--width', type=int, default=50, help='width of the system (default 50)')
     parser.add_argument('-p', '--plotP', action='store_const', const=1, default=0, help='plot Pedestrians')
     parser.add_argument('-r', '--shuffle', action='store_const', const=1, default=0, help='random shuffle')
     parser.add_argument('-v', '--reverse', action='store_const', const=1, default=0, help='reverse sequential update')
@@ -100,39 +100,9 @@ def print_logs(num_pedestrians, system_width, simulation_steps, evac_time, total
     print('--------------------------')
 
 
-# http://stackoverflow.com/questions/27239173/numpy-vectorize-a-parallel-update
-def boundary(boundary_cells):
-    """enforce boundary conditions
-    :rtype : np.ndarray
-    """
-    boundary_cells = np.concatenate([[0], boundary_cells, [0]])  # add padding cells
-    boundary_cells[0] = boundary_cells[-2]
-    boundary_cells[-1] = boundary_cells[1]
-    return boundary_cells
-
-
-def asep_parallel(cells):
-    """
-    update of cells
-    :parameter: actual state of cells
-    :rtype : cells with new state and number of moves
-    """
-    assert isinstance(cells, np.ndarray)
-    cells = boundary(cells)
-    center = cells[1:-1]
-    left = cells[0:-2]
-    right = cells[2:]
-    ones = (center == 1)
-    zeros = (center == 0)
-    result = np.copy(center)
-    result[zeros] = left[zeros]
-    result[ones] = right[ones]
-    nmoves = sum(np.logical_xor(center, result)) / 2
-    return result, nmoves
-
-
-def asep_parallel2(actual_cells):
-    """ equivalent asep_parallel(), but without vectorisation od numpy. Less elegant, but maybe easier to understand ..
+#@profile
+def asep_parallel(actual_cells):
+    """ equivalent asep_parallel(), but without vectorisation using numpy.arrays . 
     :param actual_cells:
     :return: new cells and number of moves
     """
