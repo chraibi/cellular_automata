@@ -15,16 +15,16 @@ steps = range(MAX_STEPS)
 cellSize = 0.4  # m
 vmax = 1.2
 dt = cellSize / vmax  # time step
-width = 4  # m
-height = 4  # m
+width = 4.0  # m
+height = 4.0  # m
 dim_y = int(width // cellSize + 2)  # number of columns, add ghost cells
 dim_x = int(height // cellSize + 2)  # number of rows, add ghost cells
 OBST = np.ones((dim_x, dim_y), int)  # obstacles/walls/boundaries
 SFF = np.empty((dim_x, dim_y))  # static floor field
 SFF[:] = np.Inf
 
-alpha = 0.1
-delta = 0.1
+alpha = 0
+delta = 1
 
 cells_initialised = []  # list of cells which have their ssf initialized
 exit_cells = [(dim_x // 2, dim_y - 1), (dim_x // 2 + 1, dim_y - 1)]
@@ -130,7 +130,7 @@ def plot_dff(walls, name="DFF"):
     vect[0,:] = vect[:, 0] = vect[-1, :] = vect[:, -1] = np.Inf
     # print vect
     plt.imshow(vect, cmap=cmap, interpolation='nearest')  # lanczos nearest
-    plt.colorbar()
+    cbar = plt.colorbar()
     plt.savefig("dff/{}.png".format(name))
     print("figure: {}.png".format(name))
 
@@ -167,7 +167,7 @@ def update_DFF(diff):
         dff[cell] += 1
 
     for i, j in itertools.product(range(dim_x), range(dim_y)):
-        for n in range(int(dff[i, j])):
+        for _ in range(int(dff[i, j])):
             if np.random.rand() < alpha: # decay
                 dff[i, j] -= 1
             elif np.random.rand() < delta: # diffusion
@@ -200,16 +200,16 @@ def get_neighbors(cell):
     neighbors = []
     i, j = cell
 
-    if i + 1 < dim_y:
+    if i < dim_y - 1:
         neighbors.append((i + 1, j))
 
-    if i - 1 >= 0:
+    if i >= 1:
         neighbors.append((i - 1, j))
 
-    if j + 1 < dim_x:
+    if j < dim_x - 1:
         neighbors.append((i, j + 1))
 
-    if j - 1 >= 0:
+    if j >= 1:
         neighbors.append((i, j - 1))
 
     return neighbors
