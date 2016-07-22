@@ -1,9 +1,13 @@
+#!/usr/bin/env python3
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools  # for cartesian product
 import time
 import random
 import os
+import logging
+import argparse
+
 #######################################################
 MAX_STEPS = 160
 steps = range(MAX_STEPS)
@@ -13,18 +17,19 @@ vmax = 1.2
 dt = cellSize / vmax  # time step
 width = 4  # m
 height = 4  # m
-dim_y = int(width / cellSize) + 2  # number of columns, add ghost cells
-dim_x = int(height / cellSize) + 2  # number of rows, add ghost cells
+dim_y = int(width // cellSize + 2)  # number of columns, add ghost cells
+dim_x = int(height // cellSize + 2)  # number of rows, add ghost cells
 OBST = np.ones((dim_x, dim_y), int)  # obstacles/walls/boundaries
 SFF = np.empty((dim_x, dim_y))  # static floor field
 SFF[:] = np.Inf
 
+alpha = 0.1
+delta = 0.1
+
 cells_initialised = []  # list of cells which have their ssf initialized
-exit_cells = [(dim_x / 2, dim_y - 1), (dim_x / 2 + 1, dim_y - 1)]
+exit_cells = [(dim_x // 2, dim_y - 1), (dim_x // 2 + 1, dim_y - 1)]
 # DFF = np.ones( (dim_x, dim_y) ) # dynamic floor field
 #######################################################
-import logging
-import argparse
 
 logfile = 'log.dat'
 logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -115,6 +120,20 @@ def plot_sff(walls):
     plt.savefig("SFF.png")
     # print "figure: SFF.png"
 
+def plot_dff(walls, name="DFF"):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.cla()
+    cmap = plt.get_cmap()
+    cmap.set_bad(color='k', alpha=0.8)
+    vect =  dff * walls
+    vect[0,:] = vect[:, 0] = vect[-1, :] = vect[:, -1] = np.Inf
+    # print vect
+    plt.imshow(vect, cmap=cmap, interpolation='nearest')  # lanczos nearest
+    plt.colorbar()
+    plt.savefig("dff/{}.png".format(name))
+    print("figure: {}.png".format(name))
+
 
 def plot_peds(peds, walls, i):
     fig = plt.figure()
@@ -137,14 +156,24 @@ def plot_peds(peds, walls, i):
 def init_DFF():
     """
     """
-    return np.ones((dim_x, dim_y))
+    return np.zeros((dim_x, dim_y))
 
 
-def update_DFF():
+def update_DFF(diff):
     """
     not yet implemented (tricky part!)
     """
-    return np.ones((dim_x, dim_y))
+    for cell in diff:
+        dff[cell] += 1
+
+    for i, j in itertools.product(range(dim_x), range(dim_y)):
+        for n in range(int(dff[i, j])):
+            if np.random.rand() < alpha: # decay
+                dff[i, j] -= 1
+            elif np.random.rand() < delta: # diffusion
+                dff[i, j] -= 1
+                dff[random.choice(get_neighbors((i, j)))] += 1
+    # dff[:] = np.ones((dim_x, dim_y))
 
 
 def init_SFF():
@@ -169,8 +198,7 @@ def get_neighbors(cell):
      von Neumann neighborhood
     """
     neighbors = []
-    i = cell[0]
-    j = cell[1]
+    i, j = cell
 
     if i + 1 < dim_y:
         neighbors.append((i + 1, j))
@@ -205,7 +233,7 @@ def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS):
     s = sum(probability)
 
 
-def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS, shuffle, reverse):
+def seq_update_cells(peds, sff, prob_walls, kappaD, kappaS, shuffle, reverse):
     """
     sequential update
     input
@@ -228,6 +256,8 @@ def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS, shuffle, revers
     elif reverse:  # reversed sequential update
         grid.reverse()
 
+    dff_diff = []
+
     for (i, j) in grid:  # walk through all cells in geometry
         if peds[i, j] == 0:
             continue
@@ -249,15 +279,16 @@ def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS, shuffle, revers
 
         r = np.random.rand() * p
         # print ("start update")
-        for neighbor in get_neighbors(cell):
+        for neighbor in get_neighbors(cell): #TODO: shuffle?
             r -= np.exp(-kappaS * sff[neighbor]) * np.exp(-kappaD * dff[neighbor]) * (1 - tmp_peds[neighbor]) * \
                  prob_walls[neighbor]  # todo this is calculated twice
             if r <= 0:  # move to neighbor cell
                 tmp_peds[neighbor] = 1
                 tmp_peds[i, j] = 0
+                dff_diff.append((i, j))
                 break
 
-    return tmp_peds
+    return tmp_peds, dff_diff
 
 
 def print_logs(N_pedestrians, width, height, t, dt, nruns, Dt):
@@ -314,12 +345,14 @@ if __name__ == "__main__":
                 plot_peds(peds, plot_walls, t)
                 print ('\tn: %3d ----  t: %3d |  N: %3d' % (n, t, int(np.sum(peds))))
 
-            dff = update_DFF()
-            peds = seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS, shuffle, reverse)
+            peds, dff_diff = seq_update_cells(peds, sff, prob_walls, kappaD, kappaS, shuffle, reverse)
 
+            update_DFF(dff_diff)
+            plot_dff(walls, "DFF-{}s".format(t))
             if not peds.any():  # is everybody out?
                 break
         tsim += t
     t2 = time.time()
-
+    print(SFF)
+    print(sff)
     print_logs(N_pedestrians, width, height, tsim, dt, nruns, t2 - t1)
