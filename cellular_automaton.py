@@ -126,9 +126,8 @@ def plot_dff(walls, name="DFF"):
     ax.cla()
     cmap = plt.get_cmap()
     cmap.set_bad(color='k', alpha=0.8)
-    vect =  dff * walls
-    vect[0,:] = vect[:, 0] = vect[-1, :] = vect[:, -1] = np.Inf
-    # print vect
+    vect =  dff.copy()
+    vect[walls < -10] = -np.Inf
     plt.imshow(vect, cmap=cmap, interpolation='nearest')  # lanczos nearest
     cbar = plt.colorbar()
     plt.savefig("dff/{}.png".format(name))
