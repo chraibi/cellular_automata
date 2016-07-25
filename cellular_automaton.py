@@ -23,8 +23,8 @@ OBST = np.ones((dim_x, dim_y), int)  # obstacles/walls/boundaries
 SFF = np.empty((dim_x, dim_y))  # static floor field
 SFF[:] = np.Inf
 
-alpha = 0
-delta = 1
+alpha = 0.1
+delta = 0.1
 
 cells_initialised = []  # list of cells which have their ssf initialized
 exit_cells = [(dim_x // 2, dim_y - 1), (dim_x // 2 + 1, dim_y - 1)]
@@ -160,10 +160,8 @@ def init_DFF():
 
 
 def update_DFF(diff):
-    """
-    not yet implemented (tricky part!)
-    """
     for cell in diff:
+        assert walls[cell] > -10
         dff[cell] += 1
 
     for i, j in itertools.product(range(dim_x), range(dim_y)):
@@ -172,7 +170,8 @@ def update_DFF(diff):
                 dff[i, j] -= 1
             elif np.random.rand() < delta: # diffusion
                 dff[i, j] -= 1
-                dff[random.choice(get_neighbors((i, j)))] += 1
+                dff[random.choice(filter_walls(get_neighbors((i, j))))] += 1
+        assert walls[i, j] > -10 or dff[i, j] == 0, (dff, i, j)
     # dff[:] = np.ones((dim_x, dim_y))
 
 
@@ -203,7 +202,7 @@ def get_neighbors(cell):
     if i < dim_y - 1:
         neighbors.append((i + 1, j))
 
-    if i >= 1:
+    if i >= 1: #TODO shouldn't this be i > 1 ???
         neighbors.append((i - 1, j))
 
     if j < dim_x - 1:
@@ -214,6 +213,9 @@ def get_neighbors(cell):
 
     return neighbors
 
+
+def filter_walls(cells):
+    return [c for c in cells if walls[c] > -10]
 
 def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS):
     """
@@ -354,5 +356,4 @@ if __name__ == "__main__":
         tsim += t
     t2 = time.time()
     print(SFF)
-    print(sff)
     print_logs(N_pedestrians, width, height, tsim, dt, nruns, t2 - t1)
