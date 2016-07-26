@@ -10,7 +10,7 @@ See [Video](https://www.youtube.com/watch?v=xyU8jfzUxNg&feature=youtu.be).
   - visualisation of the cell states.
   - ~~done~~: make a video from the png's
   - *todo*: track cells with _id_ for further trajectory analysis.
-  - *todo*: implement the dynamic floor field
+  - ~~done~~: implement the dynamic floor field
   - *todo*: implement the parallel update.
   - *todo*: read geometry from a png file. See [read_png.py](geometry/read_png.py).
 2. ASEP model
