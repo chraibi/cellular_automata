@@ -131,7 +131,8 @@ def plot_dff(walls, name="DFF"):
     plt.imshow(vect, cmap=cmap, interpolation='nearest')  # lanczos nearest
     cbar = plt.colorbar()
     plt.savefig("dff/{}.png".format(name))
-    print("figure: {}.png".format(name))
+    plt.close()
+    #print("figure: {}.png".format(name))
 
 
 def plot_peds(peds, walls, i):
@@ -354,5 +355,4 @@ if __name__ == "__main__":
                 break
         tsim += t
     t2 = time.time()
-    print(SFF)
     print_logs(N_pedestrians, width, height, tsim, dt, nruns, t2 - t1)
