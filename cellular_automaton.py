@@ -23,9 +23,6 @@ OBST = np.ones((dim_x, dim_y), int)  # obstacles/walls/boundaries
 SFF = np.empty((dim_x, dim_y))  # static floor field
 SFF[:] = np.Inf
 
-alpha = 0.1
-delta = 0.1
-
 cells_initialised = []  # list of cells which have their ssf initialized
 exit_cells = [(dim_x // 2, dim_y - 1), (dim_x // 2 + 1, dim_y - 1)]
 # DFF = np.ones( (dim_x, dim_y) ) # dynamic floor field
@@ -37,19 +34,29 @@ logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s - 
 
 def get_parser_args():
     parser = argparse.ArgumentParser(
-        description='Cellular Automaton. Floor Field Model [Burstedde2001] Simulation of pedestrian dynamics '
-                    'using a two-dimensional cellular automaton Physica A, 2001, 295, 507-525')
+        description='Cellular Automaton. Floor Field Model [Burstedde2001] Simulation of pedestrian'
+                    'dynamics using a two-dimensional cellular automaton Physica A, 2001, 295, 507-525')
     parser.add_argument('-s', '--ks', type=int, default=10,
-                        help='Sensitivity parameter for the  Static Floor Field (default 10)')
+                        help='sensitivity parameter for the  Static Floor Field (default 10)')
     parser.add_argument('-d', '--kd', type=int, default=0,
-                        help='Sensitivity parameter for the  Dynamic Floor Field (default 0)')
+                        help='sensitivity parameter for the  Dynamic Floor Field (default 0)')
     parser.add_argument('-n', '--numPeds', type=int, default=10, help='Number of agents (default 10)')
-    parser.add_argument('-p', '--plotS', action='store_const', const=1, default=0, help='Plot Static Floor Field')
-    parser.add_argument('-P', '--PlotP', action='store_const', const=1, default=0, help='Plot Pedestrians')
-    parser.add_argument('-r', '--shuffle', action='store_const', const=1, default=0, help='random shuffle')
-    parser.add_argument('-v', '--reverse', action='store_const', const=1, default=0, help='reverse sequential update')
+    parser.add_argument('-p', '--plotS', action='store_const', const=True, default=False,
+                        help='plot Static Floor Field')
+    parser.add_argument('--plotD', action='store_const', const=True, default=False,
+                        help='plot Dynamic Floor Field')
+    parser.add_argument('-P', '--PlotP', action='store_const', const=True, default=False,
+                        help='plot Pedestrians')
+    parser.add_argument('-r', '--shuffle', action='store_const', const=True, default=False,
+                        help='random shuffle')
+    parser.add_argument('-v', '--reverse', action='store_const', const=True, default=False,
+                        help='reverse sequential update')
     parser.add_argument('-l', '--log', type=argparse.FileType('w'), default='log.dat',
                         help='log file (default log.dat)')
+    parser.add_argument('--decay', type=float, default=0.2,
+                        help='the decay probability of the Dynamic Floor Field')
+    parser.add_argument('--diffusion', type=float, default=0.2,
+                        help='the diffusion probability of the Dynamic Floor Field')
     args = parser.parse_args()
     return args
 
@@ -120,7 +127,7 @@ def plot_sff(walls):
     plt.savefig("SFF.png")
     # print "figure: SFF.png"
 
-def plot_dff(walls, name="DFF"):
+def plot_dff(dff, walls, name="DFF", max_value=None):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.cla()
@@ -128,7 +135,7 @@ def plot_dff(walls, name="DFF"):
     cmap.set_bad(color='k', alpha=0.8)
     vect =  dff.copy()
     vect[walls < -10] = -np.Inf
-    plt.imshow(vect, cmap=cmap, interpolation='nearest')  # lanczos nearest
+    plt.imshow(vect, cmap=cmap, interpolation='nearest', vmin=0, vmax=max_value)  # lanczos nearest
     cbar = plt.colorbar()
     plt.savefig("dff/{}.png".format(name))
     plt.close()
@@ -151,6 +158,7 @@ def plot_peds(peds, walls, i):
     plt.title("%8s" % S)
     figure_name = os.path.join('pngs', 'peds%.5d.png' % i) 
     plt.savefig(figure_name)
+    plt.close()
     
 
 def init_DFF():
@@ -316,6 +324,9 @@ if __name__ == "__main__":
     N_pedestrians = args.numPeds
     shuffle = args.shuffle
     reverse = args.reverse
+    plotD = args.plotD
+    alpha = args.decay
+    delta = args.diffusion
     from_x, to_x = 1, 7  # todo parse this too
     from_y, to_y = 1, 7  # todo parse this too
     box = [from_x, to_x, from_y, to_y]
@@ -339,6 +350,8 @@ if __name__ == "__main__":
     nruns = 1  # repeate simulations 
     t1 = time.time()
     tsim = 0
+    old_dffs = []
+
     for n in range(nruns):
         peds = init_peds(N_pedestrians, [from_x, to_x, from_y, to_y], width, height, walls)
         dff = init_DFF()
@@ -350,9 +363,14 @@ if __name__ == "__main__":
             peds, dff_diff = seq_update_cells(peds, sff, prob_walls, kappaD, kappaS, shuffle, reverse)
 
             update_DFF(dff_diff)
-            plot_dff(walls, "DFF-{}s".format(t))
+            if plotD:
+                old_dffs.append((t, dff.copy()))
             if not peds.any():  # is everybody out?
                 break
         tsim += t
     t2 = time.time()
+    if plotD:
+        max_dff = max(field.max() for _, field in old_dffs)
+        for t, dff in old_dffs:
+            plot_dff(dff, walls, "DFF-{}".format(t), max_dff)
     print_logs(N_pedestrians, width, height, tsim, dt, nruns, t2 - t1)
