@@ -15,16 +15,7 @@ steps = range(MAX_STEPS)
 cellSize = 0.4  # m
 vmax = 1.2
 dt = cellSize / vmax  # time step
-width = 4.0  # m
-height = 4.0  # m
-dim_y = int(width // cellSize + 2)  # number of columns, add ghost cells
-dim_x = int(height // cellSize + 2)  # number of rows, add ghost cells
-OBST = np.ones((dim_x, dim_y), int)  # obstacles/walls/boundaries
-SFF = np.empty((dim_x, dim_y))  # static floor field
-SFF[:] = np.Inf
 
-cells_initialised = []  # list of cells which have their ssf initialized
-exit_cells = [(dim_x // 2, dim_y - 1), (dim_x // 2 + 1, dim_y - 1)]
 # DFF = np.ones( (dim_x, dim_y) ) # dynamic floor field
 #######################################################
 
@@ -38,8 +29,8 @@ def get_parser_args():
                     'dynamics using a two-dimensional cellular automaton Physica A, 2001, 295, 507-525')
     parser.add_argument('-s', '--ks', type=int, default=10,
                         help='sensitivity parameter for the  Static Floor Field (default 10)')
-    parser.add_argument('-d', '--kd', type=int, default=0,
-                        help='sensitivity parameter for the  Dynamic Floor Field (default 0)')
+    parser.add_argument('-d', '--kd', type=int, default=10,
+                        help='sensitivity parameter for the  Dynamic Floor Field (default 10)')
     parser.add_argument('-n', '--numPeds', type=int, default=10, help='Number of agents (default 10)')
     parser.add_argument('-p', '--plotS', action='store_const', const=True, default=False,
                         help='plot Static Floor Field')
@@ -54,9 +45,16 @@ def get_parser_args():
     parser.add_argument('-l', '--log', type=argparse.FileType('w'), default='log.dat',
                         help='log file (default log.dat)')
     parser.add_argument('--decay', type=float, default=0.2,
-                        help='the decay probability of the Dynamic Floor Field')
+                        help='the decay probability of the Dynamic Floor Field (default 0.2')
     parser.add_argument('--diffusion', type=float, default=0.2,
-                        help='the diffusion probability of the Dynamic Floor Field')
+                        help='the diffusion probability of the Dynamic Floor Field (default 0.2)')
+    parser.add_argument('-W', '--width', type=float, default=4.0,
+                        help='the width of the simulated are in meters, excluding walls')
+    parser.add_argument('-H', '--height', type=float, default=4.0,
+                        help='the height of the are in meters, excluding walls')
+
+    parser.add_argument('-c', '--clean', action='store_const', const=True, default=False,
+                        help='remove files from dff/ and peds/')
     args = parser.parse_args()
     return args
 
@@ -97,7 +95,7 @@ def check_N_pedestrians(box, N_pedestrians):
 
 def init_peds(N, box, width, height, walls):
     """
-    distribute N pedestrians in box 
+    distribute N pedestrians in box
     """
     from_x, to_x = box[:2]
     from_y, to_y = box[2:]
@@ -156,10 +154,10 @@ def plot_peds(peds, walls, i):
               interpolation='nearest')  # 1-peds because I want the peds to be black
     S = 't: %3.3d  |  N: %3.3d ' % (i, N)
     plt.title("%8s" % S)
-    figure_name = os.path.join('pngs', 'peds%.5d.png' % i) 
+    figure_name = os.path.join('peds', 'peds%.5d.png' % i)
     plt.savefig(figure_name)
     plt.close()
-    
+
 
 def init_DFF():
     """
@@ -178,13 +176,14 @@ def update_DFF(diff):
                 dff[i, j] -= 1
             elif np.random.rand() < delta: # diffusion
                 dff[i, j] -= 1
-                dff[random.choice(filter_walls(get_neighbors((i, j))))] += 1
+                dff[random.choice(get_neighbors((i, j)))] += 1
         assert walls[i, j] > -10 or dff[i, j] == 0, (dff, i, j)
     # dff[:] = np.ones((dim_x, dim_y))
 
 
 def init_SFF():
     # start with exit's cells
+    cells_initialised = []
     for e in exit_cells:
         cells_initialised.append(e)
         SFF[e] = 0
@@ -194,7 +193,7 @@ def init_SFF():
         neighbor_cells = get_neighbors(cell)
         for neighbor in neighbor_cells:
             # print "cell",cell, "neighbor",neighbor
-            if SFF[cell] < SFF[neighbor]:
+            if SFF[cell] + 1 < SFF[neighbor]:
                 SFF[neighbor] = SFF[cell] + 1
                 cells_initialised.append(neighbor)
     return SFF
@@ -210,7 +209,7 @@ def get_neighbors(cell):
     if i < dim_y - 1:
         neighbors.append((i + 1, j))
 
-    if i >= 1: #TODO shouldn't this be i > 1 ???
+    if i >= 1:
         neighbors.append((i - 1, j))
 
     if j < dim_x - 1:
@@ -219,28 +218,12 @@ def get_neighbors(cell):
     if j >= 1:
         neighbors.append((i, j - 1))
 
-    return neighbors
+    return filter_walls(neighbors)
 
 
 def filter_walls(cells):
     return [c for c in cells if walls[c] > -10]
 
-def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS):
-    """
-    sequential update
-    input
-    - peds:
-    - sff:
-    - dff:
-    - prob_walls:
-   - kappaD:
-   - kappaS:
-   return
-   - new peds
-   """
-
-    probability = np.exp(-kappaS * sff) * (1 - peds) * prob_walls  # *np.exp(-kappaD*dff)
-    s = sum(probability)
 
 
 def seq_update_cells(peds, sff, prob_walls, kappaD, kappaS, shuffle, reverse):
@@ -271,9 +254,15 @@ def seq_update_cells(peds, sff, prob_walls, kappaD, kappaS, shuffle, reverse):
     for (i, j) in grid:  # walk through all cells in geometry
         if peds[i, j] == 0:
             continue
+
+        if (i, j) in exit_cells:
+            tmp_peds[i, j] = 0
+            dff_diff.append((i, j))
+            continue
+
         p = 0
         probs = {}
-        cell = [i, j]
+        cell = (i, j)
         for neighbor in get_neighbors(cell):  # get the sum of probabilities
             probability = np.exp(-kappaS * sff[neighbor]) * np.exp(-kappaD * dff[neighbor]) * (1 - tmp_peds[neighbor]) * \
                           prob_walls[neighbor]
@@ -281,10 +270,6 @@ def seq_update_cells(peds, sff, prob_walls, kappaD, kappaS, shuffle, reverse):
             probs[neighbor] = probability
 
         if p == 0:  # cell can not move
-            continue
-
-        if np.array([set(e) == set(cell) for e in exit_cells]).any():  # cell reached exit?
-            tmp_peds[i, j] = 0  # remove cell from exit
             continue
 
         r = np.random.rand() * p
@@ -313,6 +298,12 @@ def print_logs(N_pedestrians, width, height, t, dt, nruns, Dt):
     print ("Factor: %.2f s" % (dt * t / Dt))
 
 
+def setup_dir(dir, clean):
+    import os
+    if os.path.exists(dir) and clean: os.system('rm -rf %s' % dir)
+    os.makedirs(dir)
+
+
 if __name__ == "__main__":
     args = get_parser_args()  # get arguments
     # init parameters
@@ -324,7 +315,19 @@ if __name__ == "__main__":
     N_pedestrians = args.numPeds
     shuffle = args.shuffle
     reverse = args.reverse
-    plotD = args.plotD
+    drawD = args.plotD
+    clean_dirs= args.clean
+
+    width = args.width # in meters
+    height = args.height # in meters
+    dim_y = int(width / cellSize + 2 + 0.00000001)  # number of columns, add ghost cells
+    dim_x = int(height / cellSize + 2 + 0.00000001)  # number of rows, add ghost cells
+
+    exit_cells = {(dim_x // 2, dim_y - 1), (dim_x // 2 + 1, dim_y - 1)}
+    OBST = np.ones((dim_x, dim_y), int)  # obstacles/walls/boundaries
+    SFF = np.empty((dim_x, dim_y))  # static floor field
+    SFF[:] = np.Inf
+
     alpha = args.decay
     delta = args.diffusion
     from_x, to_x = 1, 7  # todo parse this too
@@ -333,8 +336,8 @@ if __name__ == "__main__":
 
     N_pedestrians = check_N_pedestrians(box, N_pedestrians)
 
-    sff = init_SFF()
     walls = init_walls(exit_cells)
+    sff = init_SFF()
     init_obstacles()
     if drawS:
         plot_sff(walls)
@@ -347,10 +350,14 @@ if __name__ == "__main__":
     plot_walls[walls != 1] = -10  # not accessible
     plot_walls[walls == 1] = 0  # accessible
 
-    nruns = 1  # repeate simulations 
+    nruns = 1  # repeate simulations
     t1 = time.time()
     tsim = 0
     old_dffs = []
+
+    if drawP: setup_dir('peds', clean_dirs)
+    if drawS: setup_dir('figs', clean_dirs)
+    if drawD: setup_dir('dff', clean_dirs)
 
     for n in range(nruns):
         peds = init_peds(N_pedestrians, [from_x, to_x, from_y, to_y], width, height, walls)
@@ -363,14 +370,15 @@ if __name__ == "__main__":
             peds, dff_diff = seq_update_cells(peds, sff, prob_walls, kappaD, kappaS, shuffle, reverse)
 
             update_DFF(dff_diff)
-            if plotD:
+            if drawD:
                 old_dffs.append((t, dff.copy()))
             if not peds.any():  # is everybody out?
                 break
         tsim += t
     t2 = time.time()
-    if plotD:
+    if drawD:
         max_dff = max(field.max() for _, field in old_dffs)
         for t, dff in old_dffs:
             plot_dff(dff, walls, "DFF-{}".format(t), max_dff)
+        plot_dff(sum(x[1] for x in old_dffs), walls, "DFF-sum")
     print_logs(N_pedestrians, width, height, tsim, dt, nruns, t2 - t1)
