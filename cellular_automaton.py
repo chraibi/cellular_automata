@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+
+from functools import lru_cache
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools  # for cartesian product
@@ -16,7 +18,7 @@ cellSize = 0.4  # m
 vmax = 1.2
 dt = cellSize / vmax  # time step
 
-from_x, to_x = 7, 14  # todo parse this too
+from_x, to_x = 4, 16  # todo parse this too
 from_y, to_y = 1, 7  # todo parse this too
 box = [from_x, to_x, from_y, to_y]
 del from_x, to_x, from_y, to_y
@@ -52,9 +54,9 @@ def get_parser_args():
                         help='reverse sequential update')
     parser.add_argument('-l', '--log', type=argparse.FileType('w'), default='log.dat',
                         help='log file (default log.dat)')
-    parser.add_argument('--decay', type=float, default=0.2,
+    parser.add_argument('--decay', type=float, default=0.3,
                         help='the decay probability of the Dynamic Floor Field (default 0.2')
-    parser.add_argument('--diffusion', type=float, default=0.2,
+    parser.add_argument('--diffusion', type=float, default=0.1,
                         help='the diffusion probability of the Dynamic Floor Field (default 0.2)')
     parser.add_argument('-W', '--width', type=float, default=4.0,
                         help='the width of the simulated are in meters, excluding walls')
@@ -71,13 +73,15 @@ def get_parser_args():
 
 
 def init_obstacles():
-    pass
+    return np.ones((dim_x, dim_y), int)  # obstacles/walls/boundaries
 
 
-def init_walls(exit_cells):
+def init_walls(exit_cells, ):
     """
     define where are the walls. Consider the exits
     """
+    OBST = init_obstacles()
+
     OBST[0, :] = OBST[-1, :] = OBST[:, -1] = OBST[:, 0] = np.Inf
     for e in exit_cells:
         OBST[e] = 1
@@ -188,17 +192,20 @@ def update_DFF(diff):
 
     for i, j in itertools.product(range(dim_x), range(dim_y)):
         for _ in range(int(dff[i, j])):
-            if np.random.rand() < alpha: # decay
+            if np.random.rand() < delta: # decay
                 dff[i, j] -= 1
-            elif np.random.rand() < delta: # diffusion
+            elif np.random.rand() < alpha: # diffusion
                 dff[i, j] -= 1
                 dff[random.choice(get_neighbors((i, j)))] += 1
         assert walls[i, j] > -10 or dff[i, j] == 0, (dff, i, j)
     # dff[:] = np.ones((dim_x, dim_y))
 
-
-def init_SFF():
+@lru_cache(1024**2)
+def init_SFF(exit_cells, dim_x, dim_y):
     # start with exit's cells
+    SFF = np.empty((dim_x, dim_y))  # static floor field
+    SFF[:] = np.Inf
+
     cells_initialised = []
     for e in exit_cells:
         cells_initialised.append(e)
@@ -321,7 +328,7 @@ def setup_dir(dir, clean):
 
 
 def main(args):
-    global kappaS, kappaD, dim_y, dim_x, exit_cells, OBST, SFF, alpha, delta, walls, dff, \
+    global kappaS, kappaD, dim_y, dim_x, exit_cells, SFF, alpha, delta, walls, dff, \
            a
     # init parameters
     drawS = args.plotS  # plot or not
@@ -341,18 +348,17 @@ def main(args):
 
     nruns = args.nruns
 
-    exit_cells = {(dim_x // 2, dim_y - 1), (dim_x // 2 + 1, dim_y - 1)}
-    OBST = np.ones((dim_x, dim_y), int)  # obstacles/walls/boundaries
-    SFF = np.empty((dim_x, dim_y))  # static floor field
-    SFF[:] = np.Inf
+    exit_cells = frozenset(((dim_x // 2, dim_y - 1), (dim_x // 2 + 1, dim_y - 1)))
 
-    alpha = args.decay
-    delta = args.diffusion
+
+    delta = args.decay
+    alpha = args.diffusion
 
     N_pedestrians = check_N_pedestrians(box, N_pedestrians)
 
     walls = init_walls(exit_cells)
-    sff = init_SFF()
+
+    sff = init_SFF(exit_cells, dim_x, dim_y)
     init_obstacles()
     if drawS:
         plot_sff(walls)
