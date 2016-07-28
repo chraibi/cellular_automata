@@ -11,15 +11,15 @@ import logging
 import argparse
 
 #######################################################
-MAX_STEPS = 1024
+MAX_STEPS = 2048
 steps = range(MAX_STEPS)
 
 cellSize = 0.4  # m
 vmax = 1.2
 dt = cellSize / vmax  # time step
 
-from_x, to_x = 4, 16  # todo parse this too
-from_y, to_y = 1, 7  # todo parse this too
+from_x, to_x = 1, 20  # todo parse this too
+from_y, to_y = 1, 12  # todo parse this too
 box = [from_x, to_x, from_y, to_y]
 del from_x, to_x, from_y, to_y
 
@@ -128,7 +128,7 @@ def init_peds(N, box):
     return EMPTY_CELLS
 
 
-def plot_sff(walls):
+def plot_sff(SFF, walls):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.cla()
@@ -185,7 +185,7 @@ def init_DFF():
     return np.zeros((dim_x, dim_y))
 
 
-def update_DFF(diff):
+def update_DFF(dff, diff):
     for cell in diff:
         assert walls[cell] > -10
         dff[cell] += 1
@@ -250,7 +250,7 @@ def get_neighbors(cell):
 def filter_walls(cells):
     return [c for c in cells if walls[c] > -10]
 
-def seq_update_cells(peds, sff, prob_walls, kappaD, kappaS, shuffle, reverse):
+def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS, shuffle, reverse):
     """
     sequential update
     input
@@ -327,9 +327,32 @@ def setup_dir(dir, clean):
     os.makedirs(dir, exist_ok=True)
 
 
+def simulate(n, N_pedestrians, sff, prob_walls, shuffle, reverse, drawP, drawD_avg):
+    peds = init_peds(N_pedestrians, box)
+    dff = init_DFF()
+
+    for t in steps:  # simulation loop
+        if drawP:
+            plot_peds(peds, walls, t)
+            print('\tn: %3d ----  t: %3d |  N: %3d' % (n, t, int(np.sum(peds))))
+
+        peds, dff_diff = seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS,
+                                          shuffle, reverse)
+
+        update_DFF(dff, dff_diff)
+
+        if not peds.any():  # is everybody out?
+            break
+    else:
+        raise TimeoutError("simulation taking to long")
+    if drawD_avg:
+        return t, dff.copy()
+    else:
+        return t
+
+
 def main(args):
-    global kappaS, kappaD, dim_y, dim_x, exit_cells, SFF, alpha, delta, walls, dff, \
-           a
+    global kappaS, kappaD, dim_y, dim_x, exit_cells, SFF, alpha, delta, walls
     # init parameters
     drawS = args.plotS  # plot or not
     drawP = args.plotP  # plot or not
@@ -361,7 +384,7 @@ def main(args):
     sff = init_SFF(exit_cells, dim_x, dim_y)
     init_obstacles()
     if drawS:
-        plot_sff(walls)
+        plot_sff(sff, walls)
     # to calculate probabilities change values of walls
     prob_walls = np.empty_like(walls)  # for calculating probabilities
     plot_walls = np.empty_like(walls)  # for ploting
@@ -382,25 +405,17 @@ def main(args):
     old_dffs = []
 
     for n in range(nruns):
-        peds = init_peds(N_pedestrians, box)
-        dff = init_DFF()
 
-        for t in steps:  # simulation loop
-            if drawP:
-                plot_peds(peds, plot_walls, t)
-                print('\tn: %3d ----  t: %3d |  N: %3d' % (n, t, int(np.sum(peds))))
+        if drawD_avg:
+            t, sff = simulate(n, N_pedestrians, sff, prob_walls, shuffle, reverse, drawP, drawD_avg)
+        else:
+            t = simulate(n, N_pedestrians, sff, prob_walls, shuffle, reverse, drawP, drawD_avg)
 
-            peds, dff_diff = seq_update_cells(peds, sff, prob_walls, kappaD, kappaS,
-                                              shuffle, reverse)
-
-            update_DFF(dff_diff)
-            if drawD_avg:
-                old_dffs.append((t, dff.copy()))
-
-            if not peds.any():  # is everybody out?
-                break
         tsim += t
         times.append(t * dt)
+
+
+
     t2 = time.time()
 
     if drawD:
