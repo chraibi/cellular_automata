@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 from functools import lru_cache
+from multiprocessing.pool import Pool
+
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools  # for cartesian product
@@ -10,6 +12,7 @@ import os
 import logging
 import argparse
 
+
 #######################################################
 MAX_STEPS = 2048
 steps = range(MAX_STEPS)
@@ -18,10 +21,12 @@ cellSize = 0.4  # m
 vmax = 1.2
 dt = cellSize / vmax  # time step
 
-from_x, to_x = 1, 20  # todo parse this too
-from_y, to_y = 1, 12  # todo parse this too
+from_x, to_x = 1, 63  # todo parse this too
+from_y, to_y = 1, 63  # todo parse this too
 box = [from_x, to_x, from_y, to_y]
 del from_x, to_x, from_y, to_y
+
+#parallel = True #TODO: parse this
 
 
 # DFF = np.ones( (dim_x, dim_y) ) # dynamic floor field
@@ -68,6 +73,10 @@ def get_parser_args():
 
     parser.add_argument('-N', '--nruns', type=int, default=1,
                         help='repeat the simulation N times')
+
+    parser.add_argument('--parallel', action='store_const', const=True, default=False,
+                        help='use multithreading')
+
     args = parser.parse_args()
     return args
 
@@ -200,7 +209,7 @@ def update_DFF(dff, diff):
         assert walls[i, j] > -10 or dff[i, j] == 0, (dff, i, j)
     # dff[:] = np.ones((dim_x, dim_y))
 
-@lru_cache(1024**2)
+
 def init_SFF(exit_cells, dim_x, dim_y):
     # start with exit's cells
     SFF = np.empty((dim_x, dim_y))  # static floor field
@@ -221,10 +230,10 @@ def init_SFF(exit_cells, dim_x, dim_y):
                 cells_initialised.append(neighbor)
 
     for e in exit_cells:
-        SFF[e] = -10
+        SFF[e] = -20
     return SFF
 
-
+@lru_cache(16*1024)
 def get_neighbors(cell):
     """
      von Neumann neighborhood
@@ -232,23 +241,20 @@ def get_neighbors(cell):
     neighbors = []
     i, j = cell
 
-    if i < dim_y - 1:
+    if i < dim_y - 1 and walls[(i + 1, j)] > -10:
         neighbors.append((i + 1, j))
 
-    if i >= 1:
+    if i >= 1 and walls[(i - 1, j)] > -10:
         neighbors.append((i - 1, j))
 
-    if j < dim_x - 1:
+    if j < dim_x - 1 and walls[(i, j + 1)] > -10:
         neighbors.append((i, j + 1))
 
-    if j >= 1:
+    if j >= 1 and walls[(i, j - 1)] > -10:
         neighbors.append((i, j - 1))
 
-    return filter_walls(neighbors)
+    return neighbors
 
-
-def filter_walls(cells):
-    return [c for c in cells if walls[c] > -10]
 
 def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS, shuffle, reverse):
     """
@@ -316,7 +322,7 @@ def print_logs(N_pedestrians, width, height, t, dt, nruns, Dt):
     print ("Simulation of %d pedestrians" % N_pedestrians)
     print ("Simulation space (%.2f x %.2f) m^2" % (width, height))
     print ("SFF:  %.2f | DFF: %.2f" % (kappaS, kappaD))
-    print ("Mean Evacuation time: %.2f s, runs: %d" % ((t * dt) / nruns, nruns))
+    print ("Mean Evacuation time: %.2f s, runs: %d" % (t * dt / nruns, nruns))
     print ("Total Run time: %.2f s" % Dt)
     print ("Factor: x%.2f" % (dt * t / Dt))
 
@@ -327,9 +333,13 @@ def setup_dir(dir, clean):
     os.makedirs(dir, exist_ok=True)
 
 
-def simulate(n, N_pedestrians, sff, prob_walls, shuffle, reverse, drawP, drawD_avg):
-    peds = init_peds(N_pedestrians, box)
+def simulate(args):
+
+    n, npeds, sff, prob_walls, shuffle, reverse, drawP, giveD = args
+    peds = init_peds(npeds, box)
     dff = init_DFF()
+
+    old_dffs = []
 
     for t in steps:  # simulation loop
         if drawP:
@@ -340,25 +350,26 @@ def simulate(n, N_pedestrians, sff, prob_walls, shuffle, reverse, drawP, drawD_a
                                           shuffle, reverse)
 
         update_DFF(dff, dff_diff)
+        old_dffs.append((t, dff.copy()))
 
         if not peds.any():  # is everybody out?
             break
     else:
         raise TimeoutError("simulation taking to long")
-    if drawD_avg:
-        return t, dff.copy()
+    if giveD:
+        return t, old_dffs
     else:
         return t
 
 
 def main(args):
-    global kappaS, kappaD, dim_y, dim_x, exit_cells, SFF, alpha, delta, walls
+    global kappaS, kappaD, dim_y, dim_x, exit_cells, SFF, alpha, delta, walls, parallel
     # init parameters
     drawS = args.plotS  # plot or not
     drawP = args.plotP  # plot or not
     kappaS = args.ks
     kappaD = args.kd
-    N_pedestrians = args.numPeds
+    npeds = args.numPeds
     shuffle = args.shuffle
     reverse = args.reverse
     drawD = args.plotD
@@ -366,6 +377,13 @@ def main(args):
     clean_dirs = args.clean
     width = args.width  # in meters
     height = args.height  # in meters
+    parallel = args.parallel
+
+    if parallel and drawP :
+        raise NotImplementedError("cannot plot pedestrians when multiprocessing")
+
+
+
     dim_y = int(width / cellSize + 2 + 0.00000001)  # number of columns, add ghost cells
     dim_x = int(height / cellSize + 2 + 0.00000001)  # number of rows, add ghost cells
 
@@ -377,7 +395,7 @@ def main(args):
     delta = args.decay
     alpha = args.diffusion
 
-    N_pedestrians = check_N_pedestrians(box, N_pedestrians)
+    npeds = check_N_pedestrians(box, npeds)
 
     walls = init_walls(exit_cells)
 
@@ -404,29 +422,53 @@ def main(args):
     times = []
     old_dffs = []
 
-    for n in range(nruns):
+    if not parallel:
+        for n in range(nruns):
+            if drawD_avg or drawD:
+                t, dffs = simulate((n, npeds, sff, prob_walls, shuffle, reverse,
+                                    drawP, drawD_avg or drawD))
+                old_dffs += dffs
+            else:
+                t = simulate((n, npeds, sff, prob_walls, shuffle, reverse, drawP,
+                              drawD_avg or drawD))
+            tsim += t
+            times.append(t * dt)
+    else:
 
-        if drawD_avg:
-            t, sff = simulate(n, N_pedestrians, sff, prob_walls, shuffle, reverse, drawP, drawD_avg)
+        nproc = min(nruns, 4)
+        print('using {} processes'.format(nproc))
+        jobs = [(n, npeds, sff, prob_walls, shuffle, reverse, drawP, drawD_avg or drawD)
+                for n in range(nruns)]
+
+        with Pool(nproc) as pool:
+            results = pool.map(simulate, jobs)
+
+
+        if drawD_avg or drawD:
+            ts, chunked_dffs = zip(*results)
+            times = [t * dt for t in ts]
+            tsim = sum(ts)
+            old_dffs = sum(chunked_dffs, [])
         else:
-            t = simulate(n, N_pedestrians, sff, prob_walls, shuffle, reverse, drawP, drawD_avg)
+            times = [t * dt for t in results]
+            tsim = sum(results)
 
-        tsim += t
-        times.append(t * dt)
 
 
 
     t2 = time.time()
+    print_logs(npeds, width, height, tsim, dt, nruns, t2 - t1)
 
     if drawD:
+        print('plotting DFFs...')
         max_dff = max(field.max() for _, field in old_dffs)
         for tm, dff in old_dffs:
             plot_dff(dff, walls, "DFF-{}".format(tm), max_dff, "t: %3.3d" % tm)
     if drawD_avg:
-        plot_dff(sum(x[1] for x in old_dffs) / t, walls, "DFF-avg",
+        print('plotting average DFF')
+        plot_dff(sum(x[1] for x in old_dffs) / tsim, walls, "DFF-avg",
                  title="average over {:.2f} seconds in {} runs".format(sum(times), nruns))
 
-    print_logs(N_pedestrians, width, height, tsim, dt, nruns, t2 - t1)
     return times
 
 if __name__ == "__main__":

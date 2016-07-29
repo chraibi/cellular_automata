@@ -39,6 +39,7 @@ class Config:
     width = 25.2
     height = 25.2
     numPeds = 1116
+    parallel = True
 
     clean = False
     plotP = False
