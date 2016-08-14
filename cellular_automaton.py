@@ -1,30 +1,36 @@
+#!/usr/bin/env python3
+
+from functools import lru_cache
+from multiprocessing.pool import Pool
+
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools  # for cartesian product
 import time
 import random
 import os
+import logging
+import argparse
+
+
 #######################################################
-MAX_STEPS = 160
+MAX_STEPS = 2048
 steps = range(MAX_STEPS)
 
 cellSize = 0.4  # m
 vmax = 1.2
 dt = cellSize / vmax  # time step
-width = 4  # m
-height = 4  # m
-dim_y = int(width / cellSize) + 2  # number of columns, add ghost cells
-dim_x = int(height / cellSize) + 2  # number of rows, add ghost cells
-OBST = np.ones((dim_x, dim_y), int)  # obstacles/walls/boundaries
-SFF = np.empty((dim_x, dim_y))  # static floor field
-SFF[:] = np.Inf
 
-cells_initialised = []  # list of cells which have their ssf initialized
-exit_cells = [(dim_x / 2, dim_y - 1), (dim_x / 2 + 1, dim_y - 1)]
+from_x, to_x = 1, 63  # todo parse this too
+from_y, to_y = 1, 63  # todo parse this too
+box = [from_x, to_x, from_y, to_y]
+del from_x, to_x, from_y, to_y
+
+#parallel = True #TODO: parse this
+
+
 # DFF = np.ones( (dim_x, dim_y) ) # dynamic floor field
 #######################################################
-import logging
-import argparse
 
 logfile = 'log.dat'
 logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -32,34 +38,64 @@ logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s - 
 
 def get_parser_args():
     parser = argparse.ArgumentParser(
-        description='Cellular Automaton. Floor Field Model [Burstedde2001] Simulation of pedestrian dynamics '
-                    'using a two-dimensional cellular automaton Physica A, 2001, 295, 507-525')
+        description='Cellular Automaton. Floor Field Model [Burstedde2001] Simulation of pedestrian'
+                    'dynamics using a two-dimensional cellular automaton Physica A, 2001, 295, 507-525')
     parser.add_argument('-s', '--ks', type=int, default=10,
-                        help='Sensitivity parameter for the  Static Floor Field (default 10)')
-    parser.add_argument('-d', '--kd', type=int, default=0,
-                        help='Sensitivity parameter for the  Dynamic Floor Field (default 0)')
+                        help='sensitivity parameter for the  Static Floor Field (default 10)')
+    parser.add_argument('-d', '--kd', type=int, default=10,
+                        help='sensitivity parameter for the  Dynamic Floor Field (default 10)')
     parser.add_argument('-n', '--numPeds', type=int, default=10, help='Number of agents (default 10)')
-    parser.add_argument('-p', '--plotS', action='store_const', const=1, default=0, help='Plot Static Floor Field')
-    parser.add_argument('-P', '--PlotP', action='store_const', const=1, default=0, help='Plot Pedestrians')
-    parser.add_argument('-r', '--shuffle', action='store_const', const=1, default=0, help='random shuffle')
-    parser.add_argument('-v', '--reverse', action='store_const', const=1, default=0, help='reverse sequential update')
+    parser.add_argument('-p', '--plotS', action='store_const', const=True, default=False,
+                        help='plot Static Floor Field')
+    parser.add_argument('--plotD', action='store_const', const=True, default=False,
+                        help='plot Dynamic Floor Field')
+    parser.add_argument('--plotAvgD', action='store_const', const = True, default=False,
+                        help='plot average Dynamic Floor Field')
+    parser.add_argument('-P', '--plotP', action='store_const', const=True, default=False,
+                        help='plot Pedestrians')
+    parser.add_argument('-r', '--shuffle', action='store_const', const=True, default=False,
+                        help='random shuffle')
+    parser.add_argument('-v', '--reverse', action='store_const', const=True, default=False,
+                        help='reverse sequential update')
     parser.add_argument('-l', '--log', type=argparse.FileType('w'), default='log.dat',
                         help='log file (default log.dat)')
+    parser.add_argument('--decay', type=float, default=0.3,
+                        help='the decay probability of the Dynamic Floor Field (default 0.2')
+    parser.add_argument('--diffusion', type=float, default=0.1,
+                        help='the diffusion probability of the Dynamic Floor Field (default 0.2)')
+    parser.add_argument('-W', '--width', type=float, default=4.0,
+                        help='the width of the simulated are in meters, excluding walls')
+    parser.add_argument('-H', '--height', type=float, default=4.0,
+                        help='the height of the are in meters, excluding walls')
+
+    parser.add_argument('-c', '--clean', action='store_const', const=True, default=False,
+                        help='remove files from dff/ and peds/')
+
+    parser.add_argument('-N', '--nruns', type=int, default=1,
+                        help='repeat the simulation N times')
+
+    parser.add_argument('--parallel', action='store_const', const=True, default=False,
+                        help='use multithreading')
+
     args = parser.parse_args()
     return args
 
 
 def init_obstacles():
-    pass
+    return np.ones((dim_x, dim_y), int)  # obstacles/walls/boundaries
 
 
-def init_walls(exit_cells):
+def init_walls(exit_cells, ):
     """
     define where are the walls. Consider the exits
     """
+    OBST = init_obstacles()
+
     OBST[0, :] = OBST[-1, :] = OBST[:, -1] = OBST[:, 0] = np.Inf
     for e in exit_cells:
         OBST[e] = 1
+    # OBST[dim_x//2, dim_y//2] = OBST[0, 0]
+    # OBST[dim_x//2 + 1, dim_y//2] = OBST[0, 0]
     # print "walls"
     # print OBST
     return OBST
@@ -67,7 +103,7 @@ def init_walls(exit_cells):
 
 def check_N_pedestrians(box, N_pedestrians):
     """
-    check ion <N_pedestrian> is too big. if so change it to fit in <box>
+    check if <N_pedestrian> is too big. if so change it to fit in <box>
     """
     # holding box, where to distribute pedestrians
     # ---------------------------------------------------
@@ -83,9 +119,9 @@ def check_N_pedestrians(box, N_pedestrians):
     return N_pedestrians
 
 
-def init_peds(N, box, width, height, walls):
+def init_peds(N, box):
     """
-    distribute N pedestrians in box 
+    distribute N pedestrians in box
     """
     from_x, to_x = box[:2]
     from_y, to_y = box[2:]
@@ -101,7 +137,7 @@ def init_peds(N, box, width, height, walls):
     return EMPTY_CELLS
 
 
-def plot_sff(walls):
+def plot_sff(SFF, walls):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.cla()
@@ -114,6 +150,23 @@ def plot_sff(walls):
     plt.colorbar()
     plt.savefig("SFF.png")
     # print "figure: SFF.png"
+
+def plot_dff(dff, walls, name="DFF", max_value=None, title=""):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.cla()
+    cmap = plt.get_cmap()
+    cmap.set_bad(color='k', alpha=0.8)
+    vect =  dff.copy()
+    vect[walls < -10] = -np.Inf
+    plt.imshow(vect, cmap=cmap, interpolation='nearest', vmin=0, vmax=max_value)  # lanczos nearest
+    cbar = plt.colorbar()
+    if title:
+        plt.title(title)
+
+    plt.savefig("dff/{}.png".format(name))
+    plt.close()
+    #print("figure: {}.png".format(name))
 
 
 def plot_peds(peds, walls, i):
@@ -130,25 +183,39 @@ def plot_peds(peds, walls, i):
               interpolation='nearest')  # 1-peds because I want the peds to be black
     S = 't: %3.3d  |  N: %3.3d ' % (i, N)
     plt.title("%8s" % S)
-    figure_name = os.path.join('pngs', 'peds%.5d.png' % i) 
+    figure_name = os.path.join('peds', 'peds%.5d.png' % i)
     plt.savefig(figure_name)
-    
+    plt.close()
+
 
 def init_DFF():
     """
     """
-    return np.ones((dim_x, dim_y))
+    return np.zeros((dim_x, dim_y))
 
 
-def update_DFF():
-    """
-    not yet implemented (tricky part!)
-    """
-    return np.ones((dim_x, dim_y))
+def update_DFF(dff, diff):
+    for cell in diff:
+        assert walls[cell] > -10
+        dff[cell] += 1
+
+    for i, j in itertools.product(range(dim_x), range(dim_y)):
+        for _ in range(int(dff[i, j])):
+            if np.random.rand() < delta: # decay
+                dff[i, j] -= 1
+            elif np.random.rand() < alpha: # diffusion
+                dff[i, j] -= 1
+                dff[random.choice(get_neighbors((i, j)))] += 1
+        assert walls[i, j] > -10 or dff[i, j] == 0, (dff, i, j)
+    # dff[:] = np.ones((dim_x, dim_y))
 
 
-def init_SFF():
+def init_SFF(exit_cells, dim_x, dim_y):
     # start with exit's cells
+    SFF = np.empty((dim_x, dim_y))  # static floor field
+    SFF[:] = np.Inf
+
+    cells_initialised = []
     for e in exit_cells:
         cells_initialised.append(e)
         SFF[e] = 0
@@ -158,51 +225,35 @@ def init_SFF():
         neighbor_cells = get_neighbors(cell)
         for neighbor in neighbor_cells:
             # print "cell",cell, "neighbor",neighbor
-            if SFF[cell] < SFF[neighbor]:
+            if SFF[cell] + 1 < SFF[neighbor]:
                 SFF[neighbor] = SFF[cell] + 1
                 cells_initialised.append(neighbor)
+
+    for e in exit_cells:
+        SFF[e] = -20
     return SFF
 
-
+@lru_cache(16*1024)
 def get_neighbors(cell):
     """
      von Neumann neighborhood
     """
     neighbors = []
-    i = cell[0]
-    j = cell[1]
+    i, j = cell
 
-    if i + 1 < dim_y:
+    if i < dim_y - 1 and walls[(i + 1, j)] > -10:
         neighbors.append((i + 1, j))
 
-    if i - 1 >= 0:
+    if i >= 1 and walls[(i - 1, j)] > -10:
         neighbors.append((i - 1, j))
 
-    if j + 1 < dim_x:
+    if j < dim_x - 1 and walls[(i, j + 1)] > -10:
         neighbors.append((i, j + 1))
 
-    if j - 1 >= 0:
+    if j >= 1 and walls[(i, j - 1)] > -10:
         neighbors.append((i, j - 1))
 
     return neighbors
-
-
-def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS):
-    """
-    sequential update
-    input
-    - peds:
-    - sff:
-    - dff:
-    - prob_walls:
-   - kappaD:
-   - kappaS:
-   return
-   - new peds
-   """
-
-    probability = np.exp(-kappaS * sff) * (1 - peds) * prob_walls  # *np.exp(-kappaD*dff)
-    s = sum(probability)
 
 
 def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS, shuffle, reverse):
@@ -228,36 +279,40 @@ def seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS, shuffle, revers
     elif reverse:  # reversed sequential update
         grid.reverse()
 
+    dff_diff = []
+
     for (i, j) in grid:  # walk through all cells in geometry
         if peds[i, j] == 0:
             continue
+
+        if (i, j) in exit_cells:
+            tmp_peds[i, j] = 0
+            dff_diff.append((i, j))
+            continue
+
         p = 0
         probs = {}
-        cell = [i, j]
+        cell = (i, j)
         for neighbor in get_neighbors(cell):  # get the sum of probabilities
-            probability = np.exp(-kappaS * sff[neighbor]) * np.exp(-kappaD * dff[neighbor]) * (1 - tmp_peds[neighbor]) * \
+            probability = np.exp(-kappaS * sff[neighbor]) * np.exp(kappaD * dff[neighbor]) * (1 - tmp_peds[neighbor]) * \
                           prob_walls[neighbor]
             p += probability
             probs[neighbor] = probability
 
-        if p == 0:  # cell can not move
-            continue
-
-        if np.array([set(e) == set(cell) for e in exit_cells]).any():  # cell reached exit?
-            tmp_peds[i, j] = 0  # remove cell from exit
+        if p == 0:  # pedestrian in cell can not move
             continue
 
         r = np.random.rand() * p
         # print ("start update")
-        for neighbor in get_neighbors(cell):
-            r -= np.exp(-kappaS * sff[neighbor]) * np.exp(-kappaD * dff[neighbor]) * (1 - tmp_peds[neighbor]) * \
-                 prob_walls[neighbor]  # todo this is calculated twice
+        for neighbor in get_neighbors(cell): #TODO: shuffle?
+            r -= probs[neighbor]  # todo this is calculated twice
             if r <= 0:  # move to neighbor cell
                 tmp_peds[neighbor] = 1
                 tmp_peds[i, j] = 0
+                dff_diff.append((i, j))
                 break
 
-    return tmp_peds
+    return tmp_peds, dff_diff
 
 
 def print_logs(N_pedestrians, width, height, t, dt, nruns, Dt):
@@ -267,33 +322,87 @@ def print_logs(N_pedestrians, width, height, t, dt, nruns, Dt):
     print ("Simulation of %d pedestrians" % N_pedestrians)
     print ("Simulation space (%.2f x %.2f) m^2" % (width, height))
     print ("SFF:  %.2f | DFF: %.2f" % (kappaS, kappaD))
-    print ("Mean Evacuation time: %.2f s, runs: %d" % ((t * dt) / nruns, nruns))
+    print ("Mean Evacuation time: %.2f s, runs: %d" % (t * dt / nruns, nruns))
     print ("Total Run time: %.2f s" % Dt)
-    print ("Factor: %.2f s" % (dt * t / Dt))
+    print ("Factor: x%.2f" % (dt * t / Dt))
 
 
-if __name__ == "__main__":
-    args = get_parser_args()  # get arguments
+def setup_dir(dir, clean):
+    import os
+    if os.path.exists(dir) and clean: os.system('rm -rf %s' % dir)
+    os.makedirs(dir, exist_ok=True)
+
+
+def simulate(args):
+
+    n, npeds, sff, prob_walls, shuffle, reverse, drawP, giveD = args
+    peds = init_peds(npeds, box)
+    dff = init_DFF()
+
+    old_dffs = []
+
+    for t in steps:  # simulation loop
+        if drawP:
+            plot_peds(peds, walls, t)
+            print('\tn: %3d ----  t: %3d |  N: %3d' % (n, t, int(np.sum(peds))))
+
+        peds, dff_diff = seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS,
+                                          shuffle, reverse)
+
+        update_DFF(dff, dff_diff)
+        old_dffs.append((t, dff.copy()))
+
+        if not peds.any():  # is everybody out?
+            break
+    else:
+        raise TimeoutError("simulation taking to long")
+    if giveD:
+        return t, old_dffs
+    else:
+        return t
+
+
+def main(args):
+    global kappaS, kappaD, dim_y, dim_x, exit_cells, SFF, alpha, delta, walls, parallel
     # init parameters
-
     drawS = args.plotS  # plot or not
-    drawP = args.PlotP  # plot or not
+    drawP = args.plotP  # plot or not
     kappaS = args.ks
     kappaD = args.kd
-    N_pedestrians = args.numPeds
+    npeds = args.numPeds
     shuffle = args.shuffle
     reverse = args.reverse
-    from_x, to_x = 1, 7  # todo parse this too
-    from_y, to_y = 1, 7  # todo parse this too
-    box = [from_x, to_x, from_y, to_y]
+    drawD = args.plotD
+    drawD_avg = args.plotAvgD
+    clean_dirs = args.clean
+    width = args.width  # in meters
+    height = args.height  # in meters
+    parallel = args.parallel
 
-    N_pedestrians = check_N_pedestrians(box, N_pedestrians)
+    if parallel and drawP :
+        raise NotImplementedError("cannot plot pedestrians when multiprocessing")
 
-    sff = init_SFF()
+
+
+    dim_y = int(width / cellSize + 2 + 0.00000001)  # number of columns, add ghost cells
+    dim_x = int(height / cellSize + 2 + 0.00000001)  # number of rows, add ghost cells
+
+    nruns = args.nruns
+
+    exit_cells = frozenset(((dim_x // 2, dim_y - 1), (dim_x // 2 + 1, dim_y - 1)))
+
+
+    delta = args.decay
+    alpha = args.diffusion
+
+    npeds = check_N_pedestrians(box, npeds)
+
     walls = init_walls(exit_cells)
+
+    sff = init_SFF(exit_cells, dim_x, dim_y)
     init_obstacles()
     if drawS:
-        plot_sff(walls)
+        plot_sff(sff, walls)
     # to calculate probabilities change values of walls
     prob_walls = np.empty_like(walls)  # for calculating probabilities
     plot_walls = np.empty_like(walls)  # for ploting
@@ -303,23 +412,65 @@ if __name__ == "__main__":
     plot_walls[walls != 1] = -10  # not accessible
     plot_walls[walls == 1] = 0  # accessible
 
-    nruns = 1  # repeate simulations 
     t1 = time.time()
     tsim = 0
-    for n in range(nruns):
-        peds = init_peds(N_pedestrians, [from_x, to_x, from_y, to_y], width, height, walls)
-        dff = init_DFF()
-        for t in steps:  # simulation loop
-            if drawP:
-                plot_peds(peds, plot_walls, t)
-                print ('\tn: %3d ----  t: %3d |  N: %3d' % (n, t, int(np.sum(peds))))
 
-            dff = update_DFF()
-            peds = seq_update_cells(peds, sff, dff, prob_walls, kappaD, kappaS, shuffle, reverse)
+    if drawP: setup_dir('peds', clean_dirs)
+    if drawS: setup_dir('figs', clean_dirs)
+    if drawD or drawD_avg: setup_dir('dff', clean_dirs)
 
-            if not peds.any():  # is everybody out?
-                break
-        tsim += t
+    times = []
+    old_dffs = []
+
+    if not parallel:
+        for n in range(nruns):
+            if drawD_avg or drawD:
+                t, dffs = simulate((n, npeds, sff, prob_walls, shuffle, reverse,
+                                    drawP, drawD_avg or drawD))
+                old_dffs += dffs
+            else:
+                t = simulate((n, npeds, sff, prob_walls, shuffle, reverse, drawP,
+                              drawD_avg or drawD))
+            tsim += t
+            times.append(t * dt)
+    else:
+
+        nproc = min(nruns, 4)
+        print('using {} processes'.format(nproc))
+        jobs = [(n, npeds, sff, prob_walls, shuffle, reverse, drawP, drawD_avg or drawD)
+                for n in range(nruns)]
+
+        with Pool(nproc) as pool:
+            results = pool.map(simulate, jobs)
+
+
+        if drawD_avg or drawD:
+            ts, chunked_dffs = zip(*results)
+            times = [t * dt for t in ts]
+            tsim = sum(ts)
+            old_dffs = sum(chunked_dffs, [])
+        else:
+            times = [t * dt for t in results]
+            tsim = sum(results)
+
+
+
+
     t2 = time.time()
+    print_logs(npeds, width, height, tsim, dt, nruns, t2 - t1)
 
-    print_logs(N_pedestrians, width, height, tsim, dt, nruns, t2 - t1)
+    if drawD:
+        print('plotting DFFs...')
+        max_dff = max(field.max() for _, field in old_dffs)
+        for tm, dff in old_dffs:
+            plot_dff(dff, walls, "DFF-{}".format(tm), max_dff, "t: %3.3d" % tm)
+    if drawD_avg:
+        print('plotting average DFF')
+        plot_dff(sum(x[1] for x in old_dffs) / tsim, walls, "DFF-avg",
+                 title="average over {:.2f} seconds in {} runs".format(sum(times), nruns))
+
+    return times
+
+if __name__ == "__main__":
+    args = get_parser_args()
+    main(args)
