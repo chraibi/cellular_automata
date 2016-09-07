@@ -51,7 +51,7 @@ def get_parser_args():
                         help='plot average Dynamic Floor Field')
     parser.add_argument('-P', '--plotP', action='store_const', const=True, default=False,
                         help='plot Pedestrians')
-    parser.add_argument('-r', '--shuffle', action='store_const', const=True, default=False,
+    parser.add_argument('-r', '--shuffle', action='store_const', const=True, default=True,
                         help='random shuffle')
     parser.add_argument('-v', '--reverse', action='store_const', const=True, default=False,
                         help='reverse sequential update')
@@ -246,16 +246,14 @@ def get_neighbors(cell):
 
     if i < dim_y - 1 and walls[(i + 1, j)] > -10:
         neighbors.append((i + 1, j))
-
     if i >= 1 and walls[(i - 1, j)] > -10:
         neighbors.append((i - 1, j))
-
     if j < dim_x - 1 and walls[(i, j + 1)] > -10:
         neighbors.append((i, j + 1))
-
     if j >= 1 and walls[(i, j - 1)] > -10:
         neighbors.append((i, j - 1))
 
+    random.shuffle(neighbors)
     return neighbors
 
 
