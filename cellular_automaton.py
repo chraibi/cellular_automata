@@ -253,6 +253,7 @@ def get_neighbors(cell):
     if j >= 1 and walls[(i, j - 1)] > -10:
         neighbors.append((i, j - 1))
 
+    # not shuffling singnificantly alters the simulation...
     random.shuffle(neighbors)
     return neighbors
 
