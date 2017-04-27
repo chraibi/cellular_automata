@@ -1,0 +1,5 @@
+theme : moon
+autoslide : 5500
+mathjax : TeX-MML-AM_HTMLorMML-full
+highlight : solarized-light
+mousewheel : true
