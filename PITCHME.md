@@ -22,3 +22,10 @@ main()
   return 0;
 }
 ```
++++
+
+# Slide 4
+
+Figure
+
+![](theoretical_FD.pdf)

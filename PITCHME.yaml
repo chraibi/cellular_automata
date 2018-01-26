@@ -1,5 +1,8 @@
-theme : moon
-autoslide : 5500
+theme : beige
+autoslide : 8000
 mathjax : TeX-MML-AM_HTMLorMML-full
 highlight : solarized-light
 mousewheel : true
+published : true
+transition : fade
+autoslide : 5000
