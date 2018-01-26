@@ -1,5 +1,5 @@
 theme : beige
-autoslide : 5500
+autoslide : 8000
 mathjax : TeX-MML-AM_HTMLorMML-full
 highlight : solarized-light
 mousewheel : true
