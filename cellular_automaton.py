@@ -2,18 +2,18 @@
 
 from functools import lru_cache
 from multiprocessing.pool import Pool
-import numpy as np
-import matplotlib.pyplot as plt
 import itertools as it # for cartesian product
 import time
 import random
 import os
 import logging
 import argparse
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 #######################################################
-MAX_STEPS = 50000
+MAX_STEPS = 2000 #50000
 steps = range(MAX_STEPS)
 
 cellSize = 0.4  # m
@@ -429,7 +429,7 @@ def main(args):
     height = args.height  # in meters
     parallel = args.parallel
     box = args.box
-
+    # check if no box is specified
 
     if parallel and drawP :
         raise NotImplementedError("cannot plot pedestrians when multiprocessing")
@@ -438,7 +438,12 @@ def main(args):
 
     dim_y = int(width / cellSize + 2 + 0.00000001)  # number of columns, add ghost cells
     dim_x = int(height / cellSize + 2 + 0.00000001)  # number of rows, add ghost cells
-    print(cellSize, dim_x, dim_y)
+    print("cellsize: ", cellSize, " dim_x: ", dim_x, " dim_y: ", dim_y)
+    if box == DEFAULT_BOX:
+        print("box == room")
+        box = [2, dim_x - 1, 2, dim_y - 1]
+
+
     nruns = args.nruns
 
     exit_cells = frozenset(((dim_x // 2, dim_y - 1), (dim_x // 2 + 1, dim_y - 1)))
@@ -514,6 +519,10 @@ def main(args):
 
     t2 = time.time()
     print_logs(npeds, width, height, tsim, dt, nruns, t2 - t1)
+    if drawD_avg:
+        print('plotting average DFF')
+        plot_dff(sum(x[1] for x in old_dffs) / tsim, walls, "DFF-avg_S%.2f_D%.2f"%(kappaS,kappaD),
+                 title=r"$t = {:.2f}$ s, #runs = {}, $\kappa_S={}\;, \kappa_D={}$".format(sum(times), nruns, kappaS, kappaD))
 
     if drawD:
         print('plotting DFFs...')
@@ -521,10 +530,6 @@ def main(args):
         for tm, dff in old_dffs:
             print("t: %3.4d" % tm)
             plot_dff(dff, walls, "DFF-%3.4d"%tm, max_dff, "t: %3.4d" % tm)
-    if drawD_avg:
-        print('plotting average DFF')
-        plot_dff(sum(x[1] for x in old_dffs) / tsim, walls, "DFF-avg_S%.2f_D%.2f"%(kappaS,kappaD),
-                 title=r"$t = {:.2f}$ s, #runs = {}, $\kappa_S={}\;, \kappa_D={}$".format(sum(times), nruns, kappaS, kappaD))
 
     return times
 
