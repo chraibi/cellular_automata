@@ -135,9 +135,12 @@ def init_peds(N, box):
     PEDS = PEDS.reshape((nx, ny))  # reshape to a box
     EMPTY_CELLS = np.zeros((dim_x, dim_y), int)  # this is the simulation space
     EMPTY_CELLS[from_x:to_x + 1, from_y:to_y + 1] = PEDS  # put in the box
+    logging.info("Init peds finished. Box: x: [%.2f, %.2f]. y: [%.2f, %.2f]",
+                 from_x, to_x, from_y, to_y)
     return EMPTY_CELLS
 
 def plot_sff2(SFF, walls, i):
+    print(i)
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.cla()
@@ -148,30 +151,34 @@ def plot_sff2(SFF, walls, i):
     vect = SFF * walls
     vect[vect < -21] = np.Inf
 #    print (vect)
-    plt.imshow(vect, cmap=cmap, interpolation='nearest',vmin=-20, vmax=-0)  # lanczos nearest
+    plt.imshow(vect, cmap=cmap, interpolation='nearest',vmin=-100, vmax=20)  # lanczos nearest
     plt.colorbar()
  #   print(i)
-    plt.title("%.4d"%i)
-    plt.savefig("%.4d.png"%i)
+    plt.title("%.6d"%i)
+    plt.savefig("sff/%.6d.png"%i)
 
 def plot_sff(SFF, walls):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.cla()
+    plt.set_cmap('jet')
     cmap = plt.get_cmap()
     cmap.set_bad(color='k', alpha=0.8)
     vect = SFF * walls
-    vect[vect < -21] = np.Inf
+    vect[vect < -200] = -np.Inf
     # print vect
-    plt.imshow(vect, cmap=cmap, interpolation='nearest')  # lanczos nearest
+    max_value = np.max(SFF)
+    min_value = np.min(SFF)
+    plt.imshow(vect, cmap=cmap, interpolation='nearest', vmin=min_value, vmax=max_value)  # lanczos nearest
     plt.colorbar()
-    plt.savefig("SFF.png")
-    # print "figure: SFF.png"
+    plt.savefig("sff/SFF.pdf")
+    print ("figure: sff/SFF.pdf")
 
 def plot_dff(dff, walls, name="DFF", max_value=None, title=""):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.cla()
+    plt.set_cmap('jet')    
     cmap = plt.get_cmap()
     cmap.set_bad(color='k', alpha=0.8)
     vect =  dff.copy()
@@ -181,9 +188,9 @@ def plot_dff(dff, walls, name="DFF", max_value=None, title=""):
     if title:
         plt.title(title)
 
-    plt.savefig("dff/{}.png".format(name))
+    plt.savefig("dff/{}.png".format(name), dpi=600)
     plt.close()
-    #print("figure: {}.png".format(name))
+    logging.info("plot dff. figure: {}.png".format(name))
 
 
 def plot_peds(peds, walls, i):
@@ -200,7 +207,7 @@ def plot_peds(peds, walls, i):
               interpolation='nearest')  # 1-peds because I want the peds to be black
     S = 't: %3.3d  |  N: %3.3d ' % (i, N)
     plt.title("%8s" % S)
-    figure_name = os.path.join('peds', 'peds%.5d.png' % i)
+    figure_name = os.path.join('peds', 'peds%.6d.png' % i)
     plt.savefig(figure_name)
     plt.close()
 
@@ -229,23 +236,22 @@ def update_DFF(dff, diff):
     # dff[:] = np.ones((dim_x, dim_y))
 
 @lru_cache(1)
-def init_SFF(exit_cells, dim_x, dim_y):
+def init_SFF(exit_cells, dim_x, dim_y, drawS):
     # start with exit's cells
     SFF = np.empty((dim_x, dim_y))  # static floor field
     SFF[:] = 1
-    i = 1
-    plot_sff2(SFF, walls, i)
+    if 0 and drawS:
+        plot_sff2(SFF, walls, 1)
 
     cells_initialised = []
     for e in exit_cells:
         cells_initialised.append(e)
-        SFF[e] = -20
-    # i = 2
-    # plot_sff2(SFF, walls, i)
+        SFF[e] = -100
 
-    i = 2
-    plot_sff2(SFF, walls, i)
-    i = 3
+        
+    if 0 and drawS:
+        plot_sff2(SFF, walls, 2)
+        i = 3
     while cells_initialised:
         cell = cells_initialised.pop(0)
         neighbor_cells = get_neighbors(cell)
@@ -256,9 +262,9 @@ def init_SFF(exit_cells, dim_x, dim_y):
                 cells_initialised.append(neighbor)
                 # print(SFF)
         # print(cells_initialised)
-        plot_sff2(SFF, walls, i)
-        # print(i, SFF)
-        i += 1
+        if 0 and drawS:
+            plot_sff2(SFF, walls, i)
+            i += 1
 
     return SFF
 
@@ -383,7 +389,7 @@ def simulate(args):
 
     old_dffs = []
     for t in steps:  # simulation loop
-
+        #print("t: ", t, "  |  ", max(steps))
         if drawP:
             plot_peds(peds, walls, t)
             print('\tn: %3d ----  t: %3d |  N: %3d' % (n, t, int(np.sum(peds))))
@@ -397,8 +403,8 @@ def simulate(args):
 
         if not peds.any():  # is everybody out?
             break
-    else:
-        raise TimeoutError("simulation taking too long")
+    # else:
+    #     raise TimeoutError("simulation taking too long")
 
     if giveD:
         return t, old_dffs
@@ -432,7 +438,7 @@ def main(args):
 
     dim_y = int(width / cellSize + 2 + 0.00000001)  # number of columns, add ghost cells
     dim_x = int(height / cellSize + 2 + 0.00000001)  # number of rows, add ghost cells
-
+    print(cellSize, dim_x, dim_y)
     nruns = args.nruns
 
     exit_cells = frozenset(((dim_x // 2, dim_y - 1), (dim_x // 2 + 1, dim_y - 1)))
@@ -445,10 +451,12 @@ def main(args):
 
     walls = init_walls(exit_cells)
 
-    sff = init_SFF(exit_cells, dim_x, dim_y)
+    sff = init_SFF(exit_cells, dim_x, dim_y, drawS)
     init_obstacles()
     if drawS:
         plot_sff(sff, walls)
+
+
     # to calculate probabilities change values of walls
     # prob_walls = np.empty_like(walls)  # for calculating probabilities
     # plot_walls = np.empty_like(walls)  # for ploting
@@ -462,7 +470,7 @@ def main(args):
     tsim = 0
 
     if drawP: setup_dir('peds', clean_dirs)
-    if drawS: setup_dir('figs', False)
+    if drawS: setup_dir('sff', clean_dirs)
     if drawD or drawD_avg: setup_dir('dff', clean_dirs)
 
     times = []
@@ -470,6 +478,7 @@ def main(args):
 
     if not parallel:
         for n in range(nruns):
+            print("n= ", n, " nruns=", nruns)
             if drawD_avg or drawD:
                 t, dffs = simulate((n, npeds, box, sff, shuffle, reverse,
                                     drawP, drawD_avg or drawD))
@@ -478,6 +487,7 @@ def main(args):
                 t = simulate((n, npeds, box, sff, shuffle, reverse, drawP,
                               drawD_avg or drawD))
             tsim += t
+            print("time ", tsim)
             times.append(t * dt)
     else:
 
@@ -509,11 +519,12 @@ def main(args):
         print('plotting DFFs...')
         max_dff = max(field.max() for _, field in old_dffs)
         for tm, dff in old_dffs:
-            plot_dff(dff, walls, "DFF-{}".format(tm), max_dff, "t: %3.3d" % tm)
+            print("t: %3.4d" % tm)
+            plot_dff(dff, walls, "DFF-%3.4d"%tm, max_dff, "t: %3.4d" % tm)
     if drawD_avg:
         print('plotting average DFF')
-        plot_dff(sum(x[1] for x in old_dffs) / tsim, walls, "DFF-avg",
-                 title="average over {:.2f} seconds in {} runs".format(sum(times), nruns))
+        plot_dff(sum(x[1] for x in old_dffs) / tsim, walls, "DFF-avg_S%.2f_D%.2f"%(kappaS,kappaD),
+                 title=r"$t = {:.2f}$ s, #runs = {}, $\kappa_S={}\;, \kappa_D={}$".format(sum(times), nruns, kappaS, kappaD))
 
     return times
 
