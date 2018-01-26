@@ -137,6 +137,22 @@ def init_peds(N, box):
     EMPTY_CELLS[from_x:to_x + 1, from_y:to_y + 1] = PEDS  # put in the box
     return EMPTY_CELLS
 
+def plot_sff2(SFF, walls, i):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.cla()
+
+    plt.set_cmap('jet')
+    cmap = plt.get_cmap()
+    cmap.set_bad(color='k', alpha=0.8)
+    vect = SFF * walls
+    vect[vect < -21] = np.Inf
+#    print (vect)
+    plt.imshow(vect, cmap=cmap, interpolation='nearest',vmin=-20, vmax=-0)  # lanczos nearest
+    plt.colorbar()
+ #   print(i)
+    plt.title("%.4d"%i)
+    plt.savefig("%.4d.png"%i)
 
 def plot_sff(SFF, walls):
     fig = plt.figure()
@@ -216,24 +232,34 @@ def update_DFF(dff, diff):
 def init_SFF(exit_cells, dim_x, dim_y):
     # start with exit's cells
     SFF = np.empty((dim_x, dim_y))  # static floor field
-    SFF[:] = np.Inf
+    SFF[:] = 1
+    i = 1
+    plot_sff2(SFF, walls, i)
 
     cells_initialised = []
     for e in exit_cells:
         cells_initialised.append(e)
-        SFF[e] = 0
+        SFF[e] = -20
+    # i = 2
+    # plot_sff2(SFF, walls, i)
 
+    i = 2
+    plot_sff2(SFF, walls, i)
+    i = 3
     while cells_initialised:
         cell = cells_initialised.pop(0)
         neighbor_cells = get_neighbors(cell)
         for neighbor in neighbor_cells:
-            # print "cell",cell, "neighbor",neighbor
+            # print ("cell",cell, "neighbor",neighbor)
             if SFF[cell] + 1 < SFF[neighbor]:
                 SFF[neighbor] = SFF[cell] + 1
                 cells_initialised.append(neighbor)
+                # print(SFF)
+        # print(cells_initialised)
+        plot_sff2(SFF, walls, i)
+        # print(i, SFF)
+        i += 1
 
-    for e in exit_cells:
-        SFF[e] = -20
     return SFF
 
 @lru_cache(16*1024)
@@ -372,7 +398,7 @@ def simulate(args):
         if not peds.any():  # is everybody out?
             break
     else:
-        raise TimeoutError("simulation taking to long")
+        raise TimeoutError("simulation taking too long")
 
     if giveD:
         return t, old_dffs
