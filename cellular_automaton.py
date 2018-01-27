@@ -73,9 +73,11 @@ def get_parser_args():
 
     parser.add_argument('--parallel', action='store_const', const=True, default=False,
                         help='use multithreading')
+    parser.add_argument('--moore', action='store_const', const=True, default=False,
+                        help='use moore neighborhood. Default= Von Neumann')
 
     parser.add_argument('--box', type=int, nargs=4, default=DEFAULT_BOX,
-                        help='are which is populated with pedestrians: (from_x, to_x, from_y, to_y')
+                        help='are which is populated with pedestrians: from_x, to_x, from_y, to_y. Default: The whole room')
 
     args = parser.parse_args()
     return args
@@ -142,7 +144,7 @@ def plot_sff2(SFF, walls, i):
     """
     plots a numbered image. Useful for making movies
     """
-    print(i)
+    print("plot_sff: %.6d"%i)
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.cla()
@@ -281,7 +283,6 @@ def get_neighbors(cell):
     """
     neighbors = []
     i, j = cell
-
     if i < dim_y - 1 and walls[(i + 1, j)] > -10:
         neighbors.append((i + 1, j))
     if i >= 1 and walls[(i - 1, j)] > -10:
@@ -290,6 +291,18 @@ def get_neighbors(cell):
         neighbors.append((i, j + 1))
     if j >= 1 and walls[(i, j - 1)] > -10:
         neighbors.append((i, j - 1))
+
+    # moore
+    if moore:
+        if i >= 1 and j >= 1 and walls[(i-1, j - 1)] > -10:
+            neighbors.append((i-1, j - 1))
+        if i < dim_y - 1 and  j < dim_x -1  and walls[(i+1, j+1)] > -10:
+            neighbors.append((i+1, j + 1))
+        if i < dim_y - 1 and  j >= 1  and walls[(i+1, j-1)] > -10:
+            neighbors.append((i+1, j - 1))
+        if i >= 1 and  j < dim_x -1  and walls[(i-1, j+1)] > -10:
+            neighbors.append((i-1, j + 1))
+
 
     # not shuffling singnificantly alters the simulation...
     random.shuffle(neighbors)
@@ -423,7 +436,7 @@ def simulate(args):
 
 
 def main(args):
-    global kappaS, kappaD, dim_y, dim_x, exit_cells, SFF, alpha, delta, walls, parallel, box
+    global kappaS, kappaD, dim_y, dim_x, exit_cells, SFF, alpha, delta, walls, parallel, box, moore
     # init parameters
     drawS = args.plotS  # plot or not
     drawP = args.plotP  # plot or not
@@ -439,7 +452,13 @@ def main(args):
     height = args.height  # in meters
     parallel = args.parallel
     box = args.box
+    moore = args.moore
     # check if no box is specified
+    if moore:
+        print("Neighborhood: Moore")
+    else:
+        print("Neighborhood: Von Neumann")
+
 
     if parallel and drawP :
         raise NotImplementedError("cannot plot pedestrians when multiprocessing")
@@ -531,7 +550,11 @@ def main(args):
     print_logs(npeds, width, height, tsim, dt, nruns, t2 - t1)
     if drawD_avg:
         print('plotting average DFF')
-        plot_dff(sum(x[1] for x in old_dffs) / tsim, walls, "DFF-avg_runs_%d_N%d_S%.2f_D%.2f"%(nruns,npeds,kappaS,kappaD))
+        if moore:
+            title = "DFF-avg_Moore_runs_%d_N%d_S%.2f_D%.2f"%(nruns,npeds,kappaS,kappaD)
+        else:
+            title = "DFF-avg_Neumann_runs_%d_N%d_S%.2f_D%.2f"%(nruns,npeds,kappaS,kappaD)    
+        plot_dff(sum(x[1] for x in old_dffs) / tsim, walls, title)
 # title=r"$t = {:.2f}$ s, N={}, #runs = {}, $\kappa_S={}\;, \kappa_D={}$".format(sum(times), npeds, nruns, kappaS, kappaD)
     if drawD:
         print('plotting DFFs...')
