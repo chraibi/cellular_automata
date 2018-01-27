@@ -1,3 +1,5 @@
+# Purpose
+
 Implementation of some known cellular automata. Use for academic purposes only.
 Work in progress ...
 
@@ -18,17 +20,27 @@ Call:
 ```
 python cellular_automaton.py -W 30 -H 30  -N 1 -n 2000 --diffusion 2 --plotAvgD  --plotD -d 5 -s 2 -P
 ```
-## Video
+- Video
 [simulation](https://youtu.be/fD4l9P24J1k)
 
-## Dynamics floor field
+- Dynamics floor field (averaged over time)
 ![](figs/DFF-avg_S2.00_D5.00.png)
 
-## Static floor field
-![](figs/SFF.png)
+# Different neighborhoods
 
+Call the script with the option `-moore` to use the moore neighborhood. Otherwise, von Neumann neighborhood will be used as default.
+
+## Moore neighborhood
+
+[![./figs/SFF_moore.png](http://img.youtube.com/vi/DAzu7GkUjHc/0.jpg)](https://youtu.be/DAzu7GkUjHc)
+
+## von Neumann neighborhood
+
+[![./figs/SFF_neumann.png](http://img.youtube.com/vi/tnQegJcclu0/0.jpg)](https://youtu.be/tnQegJcclu0)
 
 # Models
+
+Two models are implemented: 
 
 ## Floor field model:
   - Different update schemes: sequential, shuffle sequential, reverse sequential.
