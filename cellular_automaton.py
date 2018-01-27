@@ -11,7 +11,6 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 #######################################################
 MAX_STEPS = 5000
 steps = range(MAX_STEPS)
@@ -169,9 +168,10 @@ def plot_sff(SFF, walls):
     # print vect
     max_value = np.max(SFF)
     min_value = np.min(SFF)
-    plt.imshow(vect, cmap=cmap, interpolation='nearest', vmin=min_value, vmax=max_value)  # lanczos nearest
+    plt.imshow(vect, cmap=cmap, interpolation='nearest', vmin=min_value, vmax=max_value, extent=[0, dim_x, 0, dim_y])  # lanczos nearest
     plt.colorbar()
     plt.savefig("sff/SFF.pdf")
+    plt.savefig("sff/SFF.png", dpi=600)
     print ("figure: sff/SFF.pdf")
 
 def plot_dff(dff, walls, name="DFF", max_value=None, title=""):
@@ -183,8 +183,9 @@ def plot_dff(dff, walls, name="DFF", max_value=None, title=""):
     cmap.set_bad(color='k', alpha=0.8)
     vect =  dff.copy()
     vect[walls < -10] = -np.Inf
-    plt.imshow(vect, cmap=cmap, interpolation='nearest', vmin=0, vmax=max_value)  # lanczos nearest
-    cbar = plt.colorbar()
+    im = ax.imshow(vect, cmap=cmap, interpolation='nearest', vmin=0, vmax=max_value, extent=[0, dim_x, 0, dim_y])  # lanczos nearest
+    plt.colorbar(im, format='%.1f')
+    #cbar = plt.colorbar()
     if title:
         plt.title(title)
 
@@ -376,8 +377,9 @@ def print_logs(N_pedestrians, width, height, t, dt, nruns, Dt):
 
 
 def setup_dir(dir, clean):
-    import os
-    if os.path.exists(dir) and clean: os.system('rm -rf %s' % dir)
+    print("make ", dir)
+    if os.path.exists(dir) and clean:
+        os.system('rm -rf %s' % dir)
     os.makedirs(dir, exist_ok=True)
 
 
@@ -389,10 +391,9 @@ def simulate(args):
 
     old_dffs = []
     for t in steps:  # simulation loop
-        #print("t: ", t, "  |  ", max(steps))
+        print('\tn: %3d ----  t: %3d |  N: %3d' % (n, t, int(np.sum(peds))))
         if drawP:
             plot_peds(peds, walls, t)
-            print('\tn: %3d ----  t: %3d |  N: %3d' % (n, t, int(np.sum(peds))))
 
         peds, dff_diff = seq_update_cells(peds, sff, dff, kappaD, kappaS,
                                           shuffle, reverse)
@@ -401,7 +402,8 @@ def simulate(args):
         if giveD:
             old_dffs.append((t, dff.copy()))
 
-        if not peds.any():  # is everybody out?
+        if not peds.any() or peds.size == 1:  # is everybody out?
+            print("Quite simulation")
             break
     # else:
     #     raise TimeoutError("simulation taking too long")
@@ -410,6 +412,9 @@ def simulate(args):
         return t, old_dffs
     else:
         return t
+
+
+
 
 
 def main(args):
@@ -459,6 +464,7 @@ def main(args):
     sff = init_SFF(exit_cells, dim_x, dim_y, drawS)
     init_obstacles()
     if drawS:
+        setup_dir('sff', clean_dirs)
         plot_sff(sff, walls)
 
 
@@ -475,7 +481,6 @@ def main(args):
     tsim = 0
 
     if drawP: setup_dir('peds', clean_dirs)
-    if drawS: setup_dir('sff', clean_dirs)
     if drawD or drawD_avg: setup_dir('dff', clean_dirs)
 
     times = []
@@ -521,9 +526,8 @@ def main(args):
     print_logs(npeds, width, height, tsim, dt, nruns, t2 - t1)
     if drawD_avg:
         print('plotting average DFF')
-        plot_dff(sum(x[1] for x in old_dffs) / tsim, walls, "DFF-avg_S%.2f_D%.2f"%(kappaS,kappaD),
-                 title=r"$t = {:.2f}$ s, #runs = {}, $\kappa_S={}\;, \kappa_D={}$".format(sum(times), nruns, kappaS, kappaD))
-
+        plot_dff(sum(x[1] for x in old_dffs) / tsim, walls, "DFF-avg_runs_%d_N%d_S%.2f_D%.2f"%(nruns,npeds,kappaS,kappaD))
+# title=r"$t = {:.2f}$ s, N={}, #runs = {}, $\kappa_S={}\;, \kappa_D={}$".format(sum(times), npeds, nruns, kappaS, kappaD)
     if drawD:
         print('plotting DFFs...')
         max_dff = max(field.max() for _, field in old_dffs)
