@@ -139,18 +139,22 @@ def init_peds(N, box):
     return EMPTY_CELLS
 
 def plot_sff2(SFF, walls, i):
+    """
+    plots a numbered image. Useful for making movies
+    """
     print(i)
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.cla()
-
     plt.set_cmap('jet')
     cmap = plt.get_cmap()
     cmap.set_bad(color='k', alpha=0.8)
     vect = SFF * walls
-    vect[vect < -21] = np.Inf
+    vect[vect < -200] = np.Inf
 #    print (vect)
-    plt.imshow(vect, cmap=cmap, interpolation='nearest',vmin=-100, vmax=20)  # lanczos nearest
+    max_value = np.max(SFF)
+    min_value = np.min(SFF)
+    plt.imshow(vect, cmap=cmap, interpolation='nearest', vmin=min_value, vmax=max_value, extent=[0, dim_x, 0, dim_y])  # lanczos nearest
     plt.colorbar()
  #   print(i)
     plt.title("%.6d"%i)
