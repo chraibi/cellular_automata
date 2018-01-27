@@ -245,16 +245,16 @@ def init_SFF(exit_cells, dim_x, dim_y, drawS):
     # start with exit's cells
     SFF = np.empty((dim_x, dim_y))  # static floor field
     SFF[:] = 1
-    if 0 and drawS:
+    make_videos = 0 # TODO: parse this
+    if make_videos and drawS:
         plot_sff2(SFF, walls, 1)
 
     cells_initialised = []
     for e in exit_cells:
         cells_initialised.append(e)
         SFF[e] = -100
-
-        
-    if 0 and drawS:
+       
+    if make_videos and drawS:
         plot_sff2(SFF, walls, 2)
         i = 3
     while cells_initialised:
@@ -267,7 +267,7 @@ def init_SFF(exit_cells, dim_x, dim_y, drawS):
                 cells_initialised.append(neighbor)
                 # print(SFF)
         # print(cells_initialised)
-        if 0 and drawS:
+        if make_videos and drawS:
             plot_sff2(SFF, walls, i)
             i += 1
 
