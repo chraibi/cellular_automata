@@ -30,11 +30,11 @@ python cellular_automaton.py -W 30 -H 30  -N 1 -n 2000 --diffusion 2 --plotAvgD 
 
 Call the script with the option `-moore` to use the moore neighborhood. Otherwise, von Neumann neighborhood will be used as default.
 
-## Moore neighborhood
+## Moore neighborhood (video)
 
 [![./figs/SFF_moore.png](http://img.youtube.com/vi/DAzu7GkUjHc/0.jpg)](https://youtu.be/DAzu7GkUjHc)
 
-## von Neumann neighborhood
+## von Neumann neighborhood (video)
 
 [![./figs/SFF_neumann.png](http://img.youtube.com/vi/tnQegJcclu0/0.jpg)](https://youtu.be/tnQegJcclu0)
 
