@@ -1,28 +1,45 @@
 Implementation of some known cellular automata. Use for academic purposes only.
 Work in progress ...
 
-See this [simulation](https://www.youtube.com/watch?v=xyU8jfzUxNg&feature=youtu.be) for `N=20` 
-and this [simulation](https://youtu.be/fD4l9P24J1k) for `N=2000`
+# Simulation results
 
-The second simulation was produces with the following call:
+With the following parameter: 
+- Width of room: 30 m
+- Hight of the room: 30 m 
+- Number of runs: 1
+- Number of pedestrians 2000
+- Diffusion parameter: 2
+- Decay parameter: 0.2
+- Static FF parameter: 2
+- Dynamic FF parameter: 5
+
+Call: 
 
 ```
 python cellular_automaton.py -W 30 -H 30  -N 1 -n 2000 --diffusion 2 --plotAvgD  --plotD -d 5 -s 2 -P
 ```
+## Video
+[simulation](https://youtu.be/fD4l9P24J1k)
+
+## Dynamics floor field
+![](figs/DFF-avg_S2.00_D5.00.png)
+
+## Static floor field
+![](figs/SFF.png)
 
 
+# Models
 
-* models
-
-1. Floor field model:
+## Floor field model:
   - Different update schemes: sequential, shuffle sequential, reverse sequential.
   - visualisation of the cell states.
   - ~~todo~~: make a video from the png's
   - *todo*: track cells with _id_ for further trajectory analysis.
   - ~~todo~~: implement the dynamic floor field
   - *todo*: implement the parallel update.
+  - todo: implement the conflict friction `mu`
   - *todo*: read geometry from a png file. See [read_png.py](geometry/read_png.py).
-2. ASEP model
+## ASEP model
   - the theoretical fundamental diagram can be reproduced, see [figure](figs/asep_fd.png). The size of the system should be reasonably high and the simulation time also.
   - *todo*: implement TASEP
   - *todo*: implement sequential update with all its variants.
@@ -34,7 +51,7 @@ python cellular_automaton.py -W 30 -H 30  -N 1 -n 2000 --diffusion 2 --plotAvgD 
 
 
 
-* How to use
+# How to use
 
 run
 
