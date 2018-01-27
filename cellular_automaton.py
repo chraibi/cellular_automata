@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 #######################################################
-MAX_STEPS = 5000
+MAX_STEPS = 500
 steps = range(MAX_STEPS)
 
 cellSize = 0.4  # m
@@ -244,16 +244,17 @@ def update_DFF(dff, diff):
 def init_SFF(exit_cells, dim_x, dim_y, drawS):
     # start with exit's cells
     SFF = np.empty((dim_x, dim_y))  # static floor field
-    SFF[:] = 1
-    make_videos = 0 # TODO: parse this
+    SFF[:] = np.sqrt(dim_x ** 2 + dim_y ** 2)
+
+    make_videos = 0
     if make_videos and drawS:
         plot_sff2(SFF, walls, 1)
 
     cells_initialised = []
     for e in exit_cells:
         cells_initialised.append(e)
-        SFF[e] = -100
-       
+        SFF[e] = 0
+
     if make_videos and drawS:
         plot_sff2(SFF, walls, 2)
         i = 3
@@ -406,7 +407,7 @@ def simulate(args):
         if giveD:
             old_dffs.append((t, dff.copy()))
 
-        if not peds.any() or peds.size == 1:  # is everybody out?
+        if not peds.any() or int(np.sum(peds)) == 1:  # is everybody out?
             print("Quite simulation")
             break
     # else:
