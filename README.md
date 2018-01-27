@@ -1,7 +1,16 @@
 Implementation of some known cellular automata. Use for academic purposes only.
 Work in progress ...
 
-See [Video](https://www.youtube.com/watch?v=xyU8jfzUxNg&feature=youtu.be).
+See this [simulation](https://www.youtube.com/watch?v=xyU8jfzUxNg&feature=youtu.be) for `N=20` 
+and this [simulation](https://youtu.be/fD4l9P24J1k) for `N=2000`
+
+The second simulation was produces with the following call:
+
+```
+python cellular_automaton.py -W 30 -H 30  -N 1 -n 2000 --diffusion 2 --plotAvgD  --plotD -d 5 -s 2 -P
+```
+
+
 
 * models
 
