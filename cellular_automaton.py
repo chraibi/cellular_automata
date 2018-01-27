@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 
 #######################################################
-MAX_STEPS = 2000 #50000
+MAX_STEPS = 5000
 steps = range(MAX_STEPS)
 
 cellSize = 0.4  # m
