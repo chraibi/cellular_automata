@@ -28,7 +28,11 @@ python cellular_automaton.py -W 30 -H 30  -N 1 -n 2000 --diffusion 2 --plotAvgD 
 
 # Different neighborhoods
 
-Call the script with the option `-moore` to use the moore neighborhood. Otherwise, von Neumann neighborhood will be used as default.
+Call the script with the option `-moore` to use the moore neighborhood. Otherwise, von Neumann neighborhood will be used as default. 
+
+The choice of the neighborhood has an influence on the evacuation time, as can seen below.
+
+![evactime](./figs/moore_neumann_tevac.png)
 
 ## Moore neighborhood (video)
 
