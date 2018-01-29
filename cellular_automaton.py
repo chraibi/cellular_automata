@@ -184,7 +184,7 @@ def plot_dff(dff, walls, name="DFF", max_value=None, title=""):
     cmap.set_bad(color='k', alpha=0.8)
     vect =  dff.copy()
     vect[walls < 0] = np.Inf
-    im = ax.imshow(vect, cmap=cmap, interpolation='nearest', vmin=0, vmax=max_value, extent=[0, dim_x, 0, dim_y])  # lanczos nearest
+    im = ax.imshow(vect, cmap=cmap, interpolation='nearest', vmin=0, vmax=max_value, extent=[0, dim_y, 0, dim_x])  # lanczos nearest
     plt.colorbar(im, format='%.1f')
     #cbar = plt.colorbar()
     if title:
