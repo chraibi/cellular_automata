@@ -463,7 +463,7 @@ def main(args):
     print("cellsize: ", cellSize, " dim_x: ", dim_x, " dim_y: ", dim_y)
     if box == DEFAULT_BOX:
         print("box == room")
-        box = [2, dim_x - 1, 2, dim_y - 1]
+        box = [2, dim_x - 2, 2, dim_y - 2]
 
 
     nruns = args.nruns
