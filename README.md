@@ -17,9 +17,9 @@ pedestriandynamics using a two-dimensional cellular automaton Physica A, 295,
 ```
 python cellular_automaton.py <optional arguments>
 ```
-## Optional arguments:
+## Optional arguments
 
-| option          |  value                   | descrption                                                                    |
+| option          |  value                   | description                                                                    |
 |-----------------|:------------------------:|------------------------------------------------------------------------------ |
 |`-h, --help`     |                          | show this help message and exit                                               |
 |  `-s, --ks`     | KS                       | sensitivity parameter for the Static Floor Field (*default 2*)                |
@@ -82,13 +82,13 @@ The choice of the neighborhood has an influence on the evacuation time, as can s
 [![./figs/SFF_neumann.png](http://img.youtube.com/vi/tnQegJcclu0/0.jpg)](https://youtu.be/tnQegJcclu0)
 
 ## Todos:
-  - Different update schemes: sequential, shuffle sequential, reverse sequential.
-  - visualisation of the cell states.
+  - ~~todo~~: Different update schemes: sequential, shuffle sequential, reverse sequential.
+  - ~~todo~~: visualisation of the cell states: (option `-P`)
   - ~~todo~~: make a video from the png's
   - *todo*: track cells with _id_ for further trajectory analysis.
   - ~~todo~~: implement the dynamic floor field
-  - *todo*: implement the parallel update.
-  - todo: implement the conflict friction `mu`
+  - *todo*: implement the parallel update
+  - *todo*: implement the conflict friction `mu` (in case of the parallel update)
   - *todo*: read geometry from a png file. See [read_png.py](geometry/read_png.py).
   
   
@@ -106,7 +106,7 @@ Journal of Statistical Physics, 1998
 ```
 python asep_slow.py <optional arguments>
 ```
-## Optional arguments:
+## Optional arguments
 
 | option          |  value                   | descrption                                                                    |
 |-----------------|:-------------------------:|------------|
@@ -121,7 +121,7 @@ python asep_slow.py <optional arguments>
  | `-l, --log`   |  LOG |     log file (default *log.dat*) | 
 
 
-## simulation results
+## Simulation results
 
 the theoretical fundamental diagram can be reproduced, see [figure](figs/asep_fd.png). The size of the system should be reasonably high and the simulation time also.
 
