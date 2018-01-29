@@ -208,8 +208,18 @@ def plot_peds(peds, walls, i):
     N = np.sum(peds)
     # print N, type(N)
     # print peds+walls
-    ax.imshow(peds + walls, cmap=cmap, vmin=-1, vmax=2,
-              interpolation='nearest')  # 1-peds because I want the peds to be black
+    #ax.axes.autoscale(False)
+    grid_x = np.arange(1, dim_x-1, cellSize)
+    grid_y = np.arange(1, dim_y-1, cellSize)
+
+    ax.imshow(peds + walls, cmap=cmap, interpolation='nearest', vmin=-1, vmax=2)  # 1-peds because I want the peds to be black
+    plt.grid(True, color='k', alpha=0.3)
+    plt.yticks(np.arange(1.5, peds.shape[0], 1))
+    plt.xticks(np.arange(1.5, peds.shape[1], 1))
+    plt.setp(ax.get_xticklabels(), visible=False)
+    plt.setp(ax.get_yticklabels(), visible=False)
+    ax.tick_params(axis='both', which='both', length=0)
+
     S = 't: %3.3d  |  N: %3.3d ' % (i, N)
     plt.title("%8s" % S)
     figure_name = os.path.join('peds', 'peds%.6d.png' % i)
