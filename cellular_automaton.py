@@ -156,7 +156,9 @@ def plot_sff2(SFF, walls, i):
     plt.colorbar()
  #   print(i)
     plt.title("%.6d"%i)
-    plt.savefig("sff/%.6d.png"%i)
+    figure_name = os.path.join('sff', '%.6d.png'%i)
+    plt.savefig(figure_name)
+    plt.close()
 
 def plot_sff(SFF, walls):
     fig = plt.figure()
@@ -171,9 +173,9 @@ def plot_sff(SFF, walls):
     min_value = np.min(SFF)
     plt.imshow(vect, cmap=cmap, interpolation='nearest', vmin=min_value, vmax=max_value, extent=[0, dim_y, 0, dim_x])  # lanczos nearest
     plt.colorbar()
-    plt.savefig("sff/SFF.pdf")
-    plt.savefig("sff/SFF.png", dpi=600)
-    print ("figure: sff/SFF.pdf")
+    figure_name = os.path.join('sff', 'SFF.png')
+    plt.savefig(figure_name, dpi=600)
+    plt.close()
 
 def plot_dff(dff, walls, name="DFF", max_value=None, title=""):
     fig = plt.figure()
@@ -190,7 +192,8 @@ def plot_dff(dff, walls, name="DFF", max_value=None, title=""):
     if title:
         plt.title(title)
 
-    plt.savefig("dff/{}.png".format(name), dpi=600)
+    figure_name = os.path.join('dff', name+'.png')
+    plt.savefig(figure_name, dpi=600)
     plt.close()
     logging.info("plot dff. figure: {}.png".format(name))
 
