@@ -93,13 +93,9 @@ def init_walls(exit_cells, ):
     """
     OBST = init_obstacles()
 
-    OBST[0, :] = OBST[-1, :] = OBST[:, -1] = OBST[:, 0] = np.Inf
+    OBST[0, :] = OBST[-1, :] = OBST[:, -1] = OBST[:, 0] = -1
     for e in exit_cells:
         OBST[e] = 1
-    # OBST[dim_x//2, dim_y//2] = OBST[0, 0]
-    # OBST[dim_x//2 + 1, dim_y//2] = OBST[0, 0]
-    # print "walls"
-    # print OBST
     return OBST
 
 
@@ -169,12 +165,11 @@ def plot_sff(SFF, walls):
     plt.set_cmap('jet')
     cmap = plt.get_cmap()
     cmap.set_bad(color='k', alpha=0.8)
-    vect = SFF * walls
-    vect[vect < -200] = -np.Inf
-    # print vect
+    vect = SFF.copy()
+    vect[walls < 0] = np.Inf
     max_value = np.max(SFF)
     min_value = np.min(SFF)
-    plt.imshow(vect, cmap=cmap, interpolation='nearest', vmin=min_value, vmax=max_value, extent=[0, dim_x, 0, dim_y])  # lanczos nearest
+    plt.imshow(vect, cmap=cmap, interpolation='nearest', vmin=min_value, vmax=max_value, extent=[0, dim_y, 0, dim_x])  # lanczos nearest
     plt.colorbar()
     plt.savefig("sff/SFF.pdf")
     plt.savefig("sff/SFF.png", dpi=600)
@@ -188,7 +183,7 @@ def plot_dff(dff, walls, name="DFF", max_value=None, title=""):
     cmap = plt.get_cmap()
     cmap.set_bad(color='k', alpha=0.8)
     vect =  dff.copy()
-    vect[walls < -10] = -np.Inf
+    vect[walls < 0] = np.Inf
     im = ax.imshow(vect, cmap=cmap, interpolation='nearest', vmin=0, vmax=max_value, extent=[0, dim_x, 0, dim_y])  # lanczos nearest
     plt.colorbar(im, format='%.1f')
     #cbar = plt.colorbar()
@@ -243,17 +238,17 @@ def update_DFF(dff, diff):
     # dff[:] = np.ones((dim_x, dim_y))
 
 @lru_cache(1)
-def init_SFF(exit_cells, dim_x, dim_y, drawS):
+def init_SFF(_exit_cells, _dim_x, _dim_y, drawS):
     # start with exit's cells
-    SFF = np.empty((dim_x, dim_y))  # static floor field
-    SFF[:] = np.sqrt(dim_x ** 2 + dim_y ** 2)
+    SFF = np.empty((_dim_x, _dim_y))  # static floor field
+    SFF[:] = np.sqrt(_dim_x ** 2 + _dim_y ** 2)
 
     make_videos = 0
     if make_videos and drawS:
         plot_sff2(SFF, walls, 1)
 
     cells_initialised = []
-    for e in exit_cells:
+    for e in _exit_cells:
         cells_initialised.append(e)
         SFF[e] = 0
 
@@ -283,24 +278,24 @@ def get_neighbors(cell):
     """
     neighbors = []
     i, j = cell
-    if i < dim_y - 1 and walls[(i + 1, j)] > -10:
+    if i < dim_x - 1 and walls[(i + 1, j)] >= 0:
         neighbors.append((i + 1, j))
-    if i >= 1 and walls[(i - 1, j)] > -10:
+    if i >= 1 and walls[(i - 1, j)] >= 0:
         neighbors.append((i - 1, j))
-    if j < dim_x - 1 and walls[(i, j + 1)] > -10:
+    if j < dim_y - 1 and walls[(i, j + 1)] >= 0:
         neighbors.append((i, j + 1))
-    if j >= 1 and walls[(i, j - 1)] > -10:
+    if j >= 1 and walls[(i, j - 1)] >= 0:
         neighbors.append((i, j - 1))
 
     # moore
     if moore:
-        if i >= 1 and j >= 1 and walls[(i-1, j - 1)] > -10:
+        if i >= 1 and j >= 1 and walls[(i-1, j - 1)] >= 0:
             neighbors.append((i-1, j - 1))
-        if i < dim_y - 1 and  j < dim_x -1  and walls[(i+1, j+1)] > -10:
+        if i < dim_x - 1 and  j < dim_y -1  and walls[(i+1, j+1)] >= 0:
             neighbors.append((i+1, j + 1))
-        if i < dim_y - 1 and  j >= 1  and walls[(i+1, j-1)] > -10:
+        if i < dim_x - 1 and  j >= 1  and walls[(i+1, j-1)] >= 0:
             neighbors.append((i+1, j - 1))
-        if i >= 1 and  j < dim_x -1  and walls[(i-1, j+1)] > -10:
+        if i >= 1 and  j < dim_y -1  and walls[(i-1, j+1)] >= 0:
             neighbors.append((i-1, j + 1))
 
 
@@ -462,7 +457,7 @@ def main(args):
         raise NotImplementedError("cannot plot pedestrians when multiprocessing")
 
 
-
+    # TODO check if width and hight are multiples of cellSize
     dim_y = int(width / cellSize + 2 + 0.00000001)  # number of columns, add ghost cells
     dim_x = int(height / cellSize + 2 + 0.00000001)  # number of rows, add ghost cells
     print("cellsize: ", cellSize, " dim_x: ", dim_x, " dim_y: ", dim_y)
@@ -474,7 +469,6 @@ def main(args):
     nruns = args.nruns
 
     exit_cells = frozenset(((dim_x // 2, dim_y - 1), (dim_x // 2 + 1, dim_y - 1)))
-
 
     delta = args.decay
     alpha = args.diffusion
@@ -490,14 +484,6 @@ def main(args):
         plot_sff(sff, walls)
 
 
-    # to calculate probabilities change values of walls
-    # prob_walls = np.empty_like(walls)  # for calculating probabilities
-    # plot_walls = np.empty_like(walls)  # for ploting
-
-    # prob_walls[walls != 1] = 0  # not accessible
-    # prob_walls[walls == 1] = 1  # accessible
-    # plot_walls[walls != 1] = -10  # not accessible
-    # plot_walls[walls == 1] = 0  # accessible
 
     t1 = time.time()
     tsim = 0
