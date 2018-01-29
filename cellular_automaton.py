@@ -80,7 +80,7 @@ def get_parser_args():
                         help='Rectangular box, initially populated with agents: from_x, to_x, from_y, to_y. Default: The whole room')
 
     _args = parser.parse_args()
-    return args_
+    return _args
 
 
 def init_obstacles():
