@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 #######################################################
-MAX_STEPS = 500
+MAX_STEPS = 1000
 steps = range(MAX_STEPS)
 
 cellSize = 0.4  # m
@@ -36,7 +36,7 @@ logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s - 
 def get_parser_args():
     parser = argparse.ArgumentParser(
         description='Cellular Automaton. Floor Field Model [Burstedde2001] Simulation of pedestrian'
-                    'dynamics using a two-dimensional cellular automaton Physica A, 2001, 295, 507-525')
+                    'dynamics using a two-dimensional cellular automaton Physica A, 295, 507-525, 2001')
     parser.add_argument('-s', '--ks', type=float, default=2,
                         help='sensitivity parameter for the  Static Floor Field (default 2)')
     parser.add_argument('-d', '--kd', type=float, default=1,
@@ -61,12 +61,12 @@ def get_parser_args():
     parser.add_argument('--diffusion', type=float, default=0.1,
                         help='the diffusion probability of the Dynamic Floor Field (default 0.2)')
     parser.add_argument('-W', '--width', type=float, default=4.0,
-                        help='the width of the simulated are in meters, excluding walls')
+                        help='the width of the simulation area in meter, excluding walls')
     parser.add_argument('-H', '--height', type=float, default=4.0,
-                        help='the height of the are in meters, excluding walls')
+                        help='the height of the simulation room in meter, excluding walls')
 
     parser.add_argument('-c', '--clean', action='store_const', const=True, default=False,
-                        help='remove files from dff/ and peds/')
+                        help='remove files from directories dff/ sff/ and peds/')
 
     parser.add_argument('-N', '--nruns', type=int, default=1,
                         help='repeat the simulation N times')
@@ -77,10 +77,10 @@ def get_parser_args():
                         help='use moore neighborhood. Default= Von Neumann')
 
     parser.add_argument('--box', type=int, nargs=4, default=DEFAULT_BOX,
-                        help='are which is populated with pedestrians: from_x, to_x, from_y, to_y. Default: The whole room')
+                        help='Rectangular box, initially populated with agents: from_x, to_x, from_y, to_y. Default: The whole room')
 
-    args = parser.parse_args()
-    return args
+    _args = parser.parse_args()
+    return args_
 
 
 def init_obstacles():
@@ -329,8 +329,6 @@ def seq_update_cells(peds, sff, dff, kappaD, kappaS, shuffle, reverse):
 
     dff_diff = np.zeros((dim_x, dim_y))
 
-
-
     grid = list(it.product(range(1, dim_x - 1), range(1, dim_y - 1))) + list(exit_cells)
     if shuffle:  # sequential random update
         random.shuffle(grid)
@@ -420,7 +418,7 @@ def simulate(args):
         if giveD:
             old_dffs.append((t, dff.copy()))
 
-        if not peds.any() or int(np.sum(peds)) == 1:  # is everybody out?
+        if not peds.any(): # is everybody out? TODO: check this. Some bug is lurking here
             print("Quite simulation")
             break
     # else:
@@ -523,6 +521,12 @@ def main(args):
             tsim += t
             print("time ", tsim)
             times.append(t * dt)
+        if moore:
+            print("save moore.npy")
+            np.save("moore.npy",times)
+        else:
+            print("save neumann.npy")
+            np.save("neumann.npy",times)
     else:
 
         nproc = min(nruns, 8)
@@ -544,16 +548,14 @@ def main(args):
             tsim = sum(results)
 
 
-
-
     t2 = time.time()
     print_logs(npeds, width, height, tsim, dt, nruns, t2 - t1)
     if drawD_avg:
         print('plotting average DFF')
         if moore:
-            title = "DFF-avg_Moore_runs_%d_N%d_S%.2f_D%.2f"%(nruns,npeds,kappaS,kappaD)
+            title = "DFF-avg_Moore_runs_%d_N%d_S%.2f_D%.2f"%(nruns, npeds, kappaS, kappaD)
         else:
-            title = "DFF-avg_Neumann_runs_%d_N%d_S%.2f_D%.2f"%(nruns,npeds,kappaS,kappaD)    
+            title = "DFF-avg_Neumann_runs_%d_N%d_S%.2f_D%.2f"%(nruns, npeds, kappaS, kappaD)
         plot_dff(sum(x[1] for x in old_dffs) / tsim, walls, title)
 # title=r"$t = {:.2f}$ s, N={}, #runs = {}, $\kappa_S={}\;, \kappa_D={}$".format(sum(times), npeds, nruns, kappaS, kappaD)
     if drawD:
