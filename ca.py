@@ -9,11 +9,17 @@ import numpy as np
 # import matplotlib.pyplot as plt
 
 class automaton:
+    """
+    init class defining system
+    """
     def __init__(self, args):
         self.npeds = args.numPeds
+        self.peds = None
+        self.sff = None # static floor field
+        self.dff = None # dynamic floor field
         # drawing parameter
-        self.drawS = args.plotS  # plot or not
-        self.drawP = args.plotP  # plot or not
+        self.drawS = args.plotS
+        self.drawP = args.plotP
         self.drawD = args.plotD
         self.drawD_avg = args.plotAvgD
         # model parameter
@@ -38,6 +44,7 @@ class automaton:
                                      (self.nrows//2 + 1, 0) , (self.nrows//2, 0)
         ))
         self.grid = list(it.product(range(1, self.nrows - 1), range(1, self.ncols - 1))) + list(self.exit_cells)
+        self.walls = None # will be initialised in init_walls()
         # Simulation parameter
         self.box = args.box # where to distribute peds
         self.nruns = args.nruns
@@ -51,8 +58,10 @@ class automaton:
         if self.box == [0, 10, 0, 10]:
             self.box = [1, self.nrows - 2, 1, self.ncols - 2]
 
-        if self.drawP: self.setup_dir('peds', self.clean_dirs)
-        if self.drawD or self.drawD_avg: self.setup_dir('dff', self.clean_dirs)
+        if self.drawP:
+            self.setup_dir('peds', self.clean_dirs)
+        if self.drawD or self.drawD_avg:
+            self.setup_dir('dff', self.clean_dirs)
         self.init_simulation()
         # --------- init variables -------------
 
@@ -140,6 +149,8 @@ class automaton:
 
     def init_dff(self):
         """
+        initialize the dff with zeros.
+        dff ill be updated every step of the simulation
         """
         self.dff = np.zeros((self.nrows, self.ncols))
 
@@ -174,16 +185,16 @@ class automaton:
         nx = to_x - from_x + 1
         ny = to_y - from_y + 1
         PEDS = np.ones(self.npeds, int)  # pedestrians
-        EMPTY_CELLS_in_BOX = np.zeros(nx * ny - self.npeds, int)  # the rest of cells in the box
-        PEDS = np.hstack((PEDS, EMPTY_CELLS_in_BOX))  # put 0s and 1s together
+        empty_cells_in_box = np.zeros(nx * ny - self.npeds, int)  # the rest of cells in the box
+        PEDS = np.hstack((PEDS, empty_cells_in_box))  # put 0s and 1s together
         np.random.shuffle(PEDS)  # shuffle them
         PEDS = PEDS.reshape((nx, ny))  # reshape to a box
-        EMPTY_CELLS = np.zeros((self.nrows, self.ncols), int)  # this is the simulation space
-        EMPTY_CELLS[from_x:to_x + 1, from_y:to_y + 1] = PEDS  # put in the box
+        empty_cells = np.zeros((self.nrows, self.ncols), int)  # this is the simulation space
+        empty_cells[from_x:to_x + 1, from_y:to_y + 1] = PEDS  # put in the box
         logging.info("Init peds finished. Box: x: [%.2f, %.2f]. y: [%.2f, %.2f]",
                      from_x, to_x, from_y, to_y)
 
-        self.peds = EMPTY_CELLS
+        self.peds = empty_cells
 
     def update(self):
         """
@@ -236,10 +247,10 @@ class automaton:
 
                 r = np.random.rand() * p
                 # print ("start update")
-                for neighbor in self.get_neighbors(cell): #TODO: shuffle?
-                    r -= probs[neighbor]
+                for neighbor_ in self.get_neighbors(cell): #TODO: shuffle?
+                    r -= probs[neighbor_]
                     if r <= 0:  # move to neighbor cell
-                        tmp_peds[neighbor] = 1
+                        tmp_peds[neighbor_] = 1
                         tmp_peds[i, j] = 0
                         dff_diff[i, j] += 1
                         break
@@ -265,16 +276,16 @@ class automaton:
         """
         print some infos to the screen
         """
-        print ("Simulation of %d pedestrians" % self.npeds)
-        print ("Simulation space (%.2f x %.2f) m^2" % (self.width, self.height))
-        print ("SFF:  %.2f | DFF: %.2f" % (self.kappaS, self.kappaD))
-        print ("Mean Evacuation time: %.2f s, runs: %d" % (self.sim_time * self.dt / self.nruns, self.nruns))
-        print ("Total Run time: %.2f s" % self.run_time)
-        print ("Factor: x%.2f" % (self.dt * self.sim_time / self.run_time))
+        print("Simulation of %d pedestrians" % self.npeds)
+        print("Simulation space (%.2f x %.2f) m^2" % (self.width, self.height))
+        print("SFF:  %.2f | DFF: %.2f" % (self.kappaS, self.kappaD))
+        print("Mean Evacuation time: %.2f s, runs: %d" % (self.sim_time * self.dt / self.nruns, self.nruns))
+        print("Total Run time: %.2f s" % self.run_time)
+        print("Factor: x%.2f" % (self.dt * self.sim_time / self.run_time))
 
 
-    def setup_dir(self, dir, clean):
-        print("make ", dir)
-        if os.path.exists(dir) and clean:
-            os.system('rm -rf %s' % dir) # this is OS specific
-        os.makedirs(dir, exist_ok=True)
+def setup_dir(Dir, clean):
+    print("make ", Dir)
+    if os.path.exists(Dir) and clean:
+        os.system('rm -rf %s' % Dir) # this is OS specific
+    os.makedirs(Dir, exist_ok=True)
