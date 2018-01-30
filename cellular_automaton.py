@@ -154,7 +154,7 @@ def plot_sff2(SFF, walls, i):
 #    print (vect)
     max_value = np.max(SFF)
     min_value = np.min(SFF)
-    plt.imshow(vect, cmap=cmap, interpolation='nearest', vmin=min_value, vmax=max_value, extent=[0, dim_x, 0, dim_y])  # lanczos nearest
+    plt.imshow(vect, cmap=cmap, interpolation='nearest', vmin=min_value, vmax=max_value, extent=[0, dim_y, 0, dim_x])  # lanczos nearest
     plt.colorbar()
  #   print(i)
     plt.title("%.6d"%i)
