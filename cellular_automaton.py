@@ -99,17 +99,19 @@ def init_walls(exit_cells, ):
     return OBST
 
 
-def check_N_pedestrians(box, N_pedestrians):
+def check_N_pedestrians(_box, N_pedestrians):
     """
     check if <N_pedestrian> is too big. if so change it to fit in <box>
     """
     # holding box, where to distribute pedestrians
     # ---------------------------------------------------
-    from_x, to_x = box[0], box[1]
-    from_y, to_y = box[2], box[3]
+    _from_x = _box[0]
+    _to_x = _box[1]
+    _from_y = _box[2]
+    _to_y  = _box[3]
     # ---------------------------------------------------
-    nx = to_x - from_x + 1
-    ny = to_y - from_y + 1
+    nx = _to_x - _from_x + 1
+    ny = _to_y - _from_y + 1
     if N_pedestrians > nx * ny:
         logging.warning("N_pedestrians (%d) is too large (max. %d). Set to max." % (N_pedestrians, nx * ny))
         N_pedestrians = nx * ny
@@ -148,7 +150,7 @@ def plot_sff2(SFF, walls, i):
     cmap = plt.get_cmap()
     cmap.set_bad(color='k', alpha=0.8)
     vect = SFF * walls
-    vect[vect < -200] = np.Inf
+    vect[vect < 0] = np.Inf
 #    print (vect)
     max_value = np.max(SFF)
     min_value = np.min(SFF)
@@ -410,6 +412,7 @@ def setup_dir(dir, clean):
 def simulate(args):
 
     n, npeds, box, sff, shuffle, reverse, drawP, giveD = args
+    print("init %d agents in box=[%d, %d, %d, %d]"%(npeds, box[0], box[1], box[2], box[3]))
     peds = init_peds(npeds, box)
     dff = init_DFF()
 
@@ -437,7 +440,12 @@ def simulate(args):
     else:
         return t
 
-
+def check_box(box):
+    """
+    exit if box is not well defined
+    """
+    assert (box[0] < box[1]), "from_x smaller than to_x"
+    assert (box[2] < box[3]), "from_y smaller than to_y"
 
 
 
@@ -458,6 +466,7 @@ def main(args):
     height = args.height  # in meters
     parallel = args.parallel
     box = args.box
+    check_box(box)
     moore = args.moore
     # check if no box is specified
     if moore:
@@ -481,7 +490,11 @@ def main(args):
 
     nruns = args.nruns
 
-    exit_cells = frozenset(((dim_x // 2, dim_y - 1), (dim_x // 2 + 1, dim_y - 1)))
+    exit_cells = frozenset(((dim_x // 2, dim_y - 1), (dim_x // 2 + 1, dim_y - 1),
+                            (dim_x - 1, dim_y//2 + 1) , (dim_x - 1, dim_y//2),
+                            (0, dim_y//2 + 1) , (1, dim_y//2),
+                            (dim_x//2 + 1, 0) , (dim_x//2, 0)
+    ))
 
     delta = args.decay
     alpha = args.diffusion
