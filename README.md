@@ -17,6 +17,11 @@ pedestriandynamics using a two-dimensional cellular automaton Physica A, 295,
 ```
 python cellular_automaton.py <optional arguments>
 ```
+---                                                                                                                                                          
+Start/Stop animation by mouse click or by pressing any key                                                                                         
+
+--- 
+
 ## Optional arguments
 
 | option          |  value                   | description                                                                    |
