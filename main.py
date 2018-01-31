@@ -45,6 +45,9 @@ def get_parser_args():
                         help='the decay probability of the Dynamic Floor Field (default 0.2')
     parser.add_argument('--diffusion', type=float, default=0.1,
                         help='the diffusion probability of the Dynamic Floor Field (default 0.2)')
+    parser.add_argument('--maxframe', type=int, default=1000,
+                        help='Max simulation frame  (default 1000')
+
     parser.add_argument('-W', '--width', type=float, default=4.0,
                         help='the width of the simulation area in meter, excluding walls')
     parser.add_argument('-H', '--height', type=float, default=4.0,
@@ -87,7 +90,6 @@ def stop_anim(event):
     ani.event_source.close()
     ani.event_source.stop()
 
-
 if __name__ == "__main__":
     parser_args = get_parser_args()
     CA = ca.automaton(parser_args)
@@ -109,4 +111,4 @@ if __name__ == "__main__":
         print("Simulation time: %.2f s" % (t2-t1))
     if  parser_args.save:
         print("save simulation to movie does not work yet!")
-        #ani.save('ca.mp4', writer=writer)
+        ani.save('ca.mp4', writer=writer)

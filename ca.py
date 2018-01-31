@@ -53,7 +53,7 @@ class automaton:
         self.grid = list(it.product(range(1, self.nrows - 1), range(1, self.ncols - 1))) + list(self.exit_cells)
         self.walls = None # will be initialised in init_walls()
         # Simulation parameter
-        self.max_frame = 1000
+        self.max_frame = args.maxframe
         self.box = args.box # where to distribute peds
         self.nruns = args.nruns
         self.VMAX = 1.2 # in m/s
