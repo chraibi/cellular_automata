@@ -276,7 +276,7 @@ class automaton:
             raise StopIteration()
 
         self.title.set_text('t: %3.3d  |  N: %3.3d ' % (self.sim_time, N))
-        self.image.set_array(self.peds)
+        self.image.set_array(self.peds+self.walls)
 
 
     def update(self, frame):
@@ -315,22 +315,21 @@ class automaton:
         print("Factor: x%.2f" % (self.dt * self.sim_time / self.run_time))
 
     def plot_peds(self, fig, ax):
-        #ax.cla()
         self.fig = fig
         cmap = plt.get_cmap("gray")
         cmap.set_bad(color='b', alpha=0.8)
         N = np.sum(self.peds)
+        print(self.walls)
         im = ax.imshow(self.peds + self.walls, cmap=cmap, interpolation='nearest', vmin=-1, vmax=2, animated=True)
-        plt.grid(True, color='k', alpha=0.7)
+        plt.grid(True, color='k', alpha=0.6)
         plt.yticks(np.arange(1.5, self.peds.shape[0], 1))
         plt.xticks(np.arange(1.5, self.peds.shape[1], 1))
         plt.setp(ax.get_xticklabels(), visible=False)
         plt.setp(ax.get_yticklabels(), visible=False)
         ax.tick_params(axis='both', which='both', length=0)
 
-        S = 't: %3.3d  |  N: %3.3d ' % (self.sim_time, N)
-        #plt.title("%8s" % S)
-        self.title = ax.text(0.5,1.05,  '%8s' % S,
+        title = 't: %3.3d  |  N: %3.3d ' % (self.sim_time, N)
+        self.title = ax.text(0.5,1.05,  '%8s' % title,
                         transform=ax.transAxes, ha="center")
         return im
 
