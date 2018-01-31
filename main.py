@@ -4,8 +4,11 @@
 import time
 import logging
 import argparse
-
-from ca import *
+import matplotlib
+#matplotlib.use('TKAgg')
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import ca
 #######################################################
 logfile = 'log.dat'
 logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -63,7 +66,17 @@ def get_parser_args():
 
 
 
+# Set up formatting for the movie files
+Writer = animation.writers['ffmpeg']
+writer = Writer(fps=15, metadata=dict(artist='Mohcine Chraibi'), bitrate=1800)
 
 if __name__ == "__main__":
     parser_args = get_parser_args()
-    CA = automaton(parser_args)
+    CA = ca.automaton(parser_args)
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    CA.image = CA.plot_peds(fig, ax)
+    ani = animation.FuncAnimation(fig, CA.update, interval=CA.MAX_STEPS, blit=True, repeat=False)
+    fig.canvas.mpl_connect('close_event', ca.close)
+    plt.show()
+    #ani.save('im.mp4', writer=writer)

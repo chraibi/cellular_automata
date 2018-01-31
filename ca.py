@@ -1,12 +1,14 @@
 from functools import lru_cache
-
 import itertools as it # for cartesian product
 import random
 import os
 import logging
 # import argparse
 import numpy as np
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import numpy as np
+
+
 
 class automaton:
     """
@@ -18,10 +20,13 @@ class automaton:
         self.sff = None # static floor field
         self.dff = None # dynamic floor field
         # drawing parameter
-        self.drawS = args.plotS
-        self.drawP = args.plotP
-        self.drawD = args.plotD
-        self.drawD_avg = args.plotAvgD
+        self.drawS = args.plotS # plot ssf
+        self.drawP = args.plotP # plot peds
+        self.drawD = args.plotD # plot dff
+        self.drawD_avg = args.plotAvgD # plot average dff
+        self.image = None
+        self.fig = None
+        self.title = ''
         # model parameter
         self.kappaS = args.ks
         self.kappaD = args.kd
@@ -33,15 +38,18 @@ class automaton:
         self.reverse = args.reverse
         self.parallel = args.parallel
         # 2D space parameter
-        self.cellSize = 0.4 # m
         self.width = args.width  # in meters
         self.height = args.height  # in meters
-        self.ncols = int(self.width / self.cellSize + 2 + 0.00000001)  # number of columns, add ghost cells
-        self.nrows = int(self.height / self.cellSize + 2 + 0.00000001)  # number of rows, add ghost cells
-        self.exit_cells = frozenset(((self.nrows // 2, self.ncols - 1), (self.nrows // 2 + 1, self.ncols - 1),
-                                     (self.nrows - 1, self.ncols//2 + 1) , (self.nrows - 1, self.ncols//2),
-                                     (0, self.ncols//2 + 1) , (1, self.ncols//2),
-                                     (self.nrows//2 + 1, 0) , (self.nrows//2, 0)
+        self.CELL_SIZE = 0.4 # in m
+        # number of columns, add ghost cells
+        self.ncols = int(self.width / self.CELL_SIZE + 2 + 0.00000001)
+        # number of rows, add ghost cells
+        self.nrows = int(self.height / self.CELL_SIZE + 2 + 0.00000001)
+        self.exit_cells = frozenset((
+            (self.nrows // 2, self.ncols - 1), (self.nrows // 2 + 1, self.ncols - 1),
+            (self.nrows - 1, self.ncols//2 + 1), (self.nrows - 1, self.ncols//2),
+            (0, self.ncols//2 + 1), (1, self.ncols//2),
+            (self.nrows//2 + 1, 0), (self.nrows//2, 0)
         ))
         self.grid = list(it.product(range(1, self.nrows - 1), range(1, self.ncols - 1))) + list(self.exit_cells)
         self.walls = None # will be initialised in init_walls()
@@ -50,8 +58,8 @@ class automaton:
         self.nruns = args.nruns
         self.MAX_STEPS = 1000
         self.steps = range(self.MAX_STEPS)
-        self.vmax = 1.2
-        self.dt = self.cellSize / self.vmax  # time step
+        self.VMAX = 1.2 # in m/s
+        self.DT = self.CELL_SIZE / self.VMAX  # TIME step
         self.sim_time = 0
         self.run_time = 0
         self.clean_dirs = args.clean # clean up directories
@@ -59,9 +67,9 @@ class automaton:
             self.box = [1, self.nrows - 2, 1, self.ncols - 2]
 
         if self.drawP:
-            self.setup_dir('peds', self.clean_dirs)
+            setup_dir('peds', self.clean_dirs)
         if self.drawD or self.drawD_avg:
-            self.setup_dir('dff', self.clean_dirs)
+            setup_dir('dff', self.clean_dirs)
         self.init_simulation()
         # --------- init variables -------------
 
@@ -85,15 +93,14 @@ class automaton:
 
     def check_N_pedestrians(self):
         """
-        check if <N_pedestrian> is too big. if so change it to fit in <box>
+        check if <N_pedestrian> is too big.
+        if so change it to fit in <box>
         """
         # holding box, where to distribute pedestrians
-        # ---------------------------------------------------
         _from_x = self.box[0]
         _to_x = self.box[1]
         _from_y = self.box[2]
         _to_y = self.box[3]
-        # ---------------------------------------------------
         nx = _to_x - _from_x + 1
         ny = _to_y - _from_y + 1
         if self.npeds > nx * ny:
@@ -101,12 +108,13 @@ class automaton:
             self.npeds = nx * ny
 
     def init_obstacles(self):
-        self.obstacles = np.ones((self.nrows, self.ncols), int)  # obstacles/walls/boundaries
+        self.obstacles = np.ones((self.nrows, self.ncols), int)
 
     @lru_cache(16*1024)
     def get_neighbors(self, cell):
         """
-        von Neumann neighborhood or moore neighborhood
+        Default: von Neumann neighborhood
+        if flag, moore neighborhood
         """
         neighbors = []
         i, j = cell
@@ -130,8 +138,6 @@ class automaton:
             if i >= 1 and  j < self.ncols -1  and self.walls[(i-1, j+1)] >= 0:
                 neighbors.append((i-1, j + 1))
 
-
-        # not shuffling singnificantly alters the simulation...
         random.shuffle(neighbors)
         return neighbors
 
@@ -150,12 +156,16 @@ class automaton:
     def init_dff(self):
         """
         initialize the dff with zeros.
-        dff ill be updated every step of the simulation
+        self.dff will be updated every step of the simulation
         """
         self.dff = np.zeros((self.nrows, self.ncols))
 
     @lru_cache(1)
     def init_sff(self):
+        """
+        initialise static floor field
+        self.sff is initialised
+        """
         # start with exit's cells
         SFF = np.empty((self.nrows, self.ncols))  # static floor field
         SFF[:] = np.sqrt(self.nrows ** 2 + self.ncols ** 2)
@@ -173,39 +183,44 @@ class automaton:
                     SFF[neighbor] = SFF[cell] + 1
                     cells_initialised.append(neighbor)
 
-
         self.sff = SFF
 
     def init_peds(self):
         """
-        distribute N pedestrians in box
+        distribute pedestrians in box
+        self.peds is initialised
         """
         from_x, to_x = self.box[:2]
         from_y, to_y = self.box[2:]
         nx = to_x - from_x + 1
         ny = to_y - from_y + 1
         PEDS = np.ones(self.npeds, int)  # pedestrians
-        empty_cells_in_box = np.zeros(nx * ny - self.npeds, int)  # the rest of cells in the box
-        PEDS = np.hstack((PEDS, empty_cells_in_box))  # put 0s and 1s together
-        np.random.shuffle(PEDS)  # shuffle them
-        PEDS = PEDS.reshape((nx, ny))  # reshape to a box
-        empty_cells = np.zeros((self.nrows, self.ncols), int)  # this is the simulation space
-        empty_cells[from_x:to_x + 1, from_y:to_y + 1] = PEDS  # put in the box
-        logging.info("Init peds finished. Box: x: [%.2f, %.2f]. y: [%.2f, %.2f]",
+        # the rest of cells in the box
+        empty_cells_in_box = np.zeros(nx * ny - self.npeds, int)
+        # put 0s and 1s together
+        PEDS = np.hstack((PEDS, empty_cells_in_box))
+        np.random.shuffle(PEDS)
+        PEDS = PEDS.reshape((nx, ny))
+        world = np.zeros((self.nrows, self.ncols), int)
+        world[from_x:to_x + 1, from_y:to_y + 1] = PEDS
+        logging.info("Init peds in Box: x: [%.2f, %.2f]. y: [%.2f, %.2f]",
                      from_x, to_x, from_y, to_y)
 
-        self.peds = empty_cells
+        self.peds = world
 
-    def update(self):
+    def step(self, frame):
         """
-        sequential update
-        updates
-        - peds
-        - dff
+        sequential update of the system
+        updates the following
+        - self.peds
+        - self.dff
         """
 
+        self.sim_time = frame
         tmp_peds = np.empty_like(self.peds)  # temporary cells
         np.copyto(tmp_peds, self.peds)
+        N = np.sum(self.peds)
+        print('t: %3.3d  |  N: %3.3d ' % (self.sim_time, N))
 
         dff_diff = np.zeros((self.nrows, self.ncols))
         if self.shuffle:  # sequential random update
@@ -242,21 +257,36 @@ class automaton:
                 p += probability
                 probs[neighbor] = probability
 
-                if p == 0:  # pedestrian in cell can not move
-                    continue
+            if p == 0:  # pedestrian in cell can not move
+                continue
 
-                r = np.random.rand() * p
-                # print ("start update")
-                for neighbor_ in self.get_neighbors(cell): #TODO: shuffle?
-                    r -= probs[neighbor_]
-                    if r <= 0:  # move to neighbor cell
-                        tmp_peds[neighbor_] = 1
-                        tmp_peds[i, j] = 0
-                        dff_diff[i, j] += 1
-                        break
+            r = np.random.rand() * p
+            # print ("start update")
+            for neighbor_ in self.get_neighbors(cell):
+                r -= probs[neighbor_]
+                if r <= 0:  # move to neighbor cell
+                    tmp_peds[neighbor_] = 1
+                    tmp_peds[i, j] = 0
+                    dff_diff[i, j] += 1
+                    break
 
         self.update_dff(dff_diff)
         self.peds = tmp_peds
+        if not self.peds.any():  #or self.sim_time > self.MAX_STEPS:
+            raise StopIteration()
+
+        self.title.set_text('t: %3.3d  |  N: %3.3d ' % (self.sim_time, N))
+        self.image.set_array(self.peds)
+
+
+    def update(self, frame):
+        try:
+            self.step(frame)
+        except StopIteration:
+            close(self.fig)
+
+        return self.image, #, self.title,
+
 
 
     def update_dff(self, diff):
@@ -279,10 +309,33 @@ class automaton:
         print("Simulation of %d pedestrians" % self.npeds)
         print("Simulation space (%.2f x %.2f) m^2" % (self.width, self.height))
         print("SFF:  %.2f | DFF: %.2f" % (self.kappaS, self.kappaD))
+        print("Diffusion:  %.2f | Decay: %.2f" % (self.diffusion, self.decay))
         print("Mean Evacuation time: %.2f s, runs: %d" % (self.sim_time * self.dt / self.nruns, self.nruns))
         print("Total Run time: %.2f s" % self.run_time)
         print("Factor: x%.2f" % (self.dt * self.sim_time / self.run_time))
 
+    def plot_peds(self, fig, ax):
+        #ax.cla()
+        self.fig = fig
+        cmap = plt.get_cmap("gray")
+        cmap.set_bad(color='b', alpha=0.8)
+        N = np.sum(self.peds)
+        im = ax.imshow(self.peds + self.walls, cmap=cmap, interpolation='nearest', vmin=-1, vmax=2, animated=True)
+        plt.grid(True, color='k', alpha=0.7)
+        plt.yticks(np.arange(1.5, self.peds.shape[0], 1))
+        plt.xticks(np.arange(1.5, self.peds.shape[1], 1))
+        plt.setp(ax.get_xticklabels(), visible=False)
+        plt.setp(ax.get_yticklabels(), visible=False)
+        ax.tick_params(axis='both', which='both', length=0)
+
+        S = 't: %3.3d  |  N: %3.3d ' % (self.sim_time, N)
+        #plt.title("%8s" % S)
+        self.title = ax.text(0.5,1.05,  '%8s' % S,
+                        transform=ax.transAxes, ha="center")
+        return im
+
+def close(fig):
+    plt.close(fig)
 
 def setup_dir(Dir, clean):
     print("make ", Dir)
