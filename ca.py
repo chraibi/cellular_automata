@@ -6,9 +6,7 @@ import logging
 # import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-import numpy as np
-
-
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 class automaton:
     """
@@ -19,6 +17,7 @@ class automaton:
         self.peds = None
         self.sff = None # static floor field
         self.dff = None # dynamic floor field
+        self.mean_dff = None # dynamic floor field
         # drawing parameter
         self.drawS = args.plotS # plot ssf
         self.drawP = args.plotP # plot peds
@@ -56,32 +55,28 @@ class automaton:
         # Simulation parameter
         self.box = args.box # where to distribute peds
         self.nruns = args.nruns
-        self.MAX_STEPS = 1000
-        self.steps = range(self.MAX_STEPS)
         self.VMAX = 1.2 # in m/s
         self.DT = self.CELL_SIZE / self.VMAX  # TIME step
-        self.sim_time = 0
+        self.frame = 0
         self.run_time = 0
         self.clean_dirs = args.clean # clean up directories
         if self.box == [0, 10, 0, 10]:
             self.box = [1, self.nrows - 2, 1, self.ncols - 2]
 
-        if self.drawP:
-            setup_dir('peds', self.clean_dirs)
-        if self.drawD or self.drawD_avg:
-            setup_dir('dff', self.clean_dirs)
         self.init_simulation()
         # --------- init variables -------------
 
     def init_simulation(self):
+        self.check_box()
+        self.check_N_pedestrians()
         self.init_obstacles()
         self.init_walls()
         self.init_peds()
         self.init_sff()
         self.init_dff()
-        # make some checks
-        self.check_box()
-        self.check_N_pedestrians()
+        if self.drawS:
+            setup_dir('sff', self.clean_dirs)
+            self.plot_ff(self.sff, "sff")
 
 
     def check_box(self):
@@ -159,6 +154,7 @@ class automaton:
         self.dff will be updated every step of the simulation
         """
         self.dff = np.zeros((self.nrows, self.ncols))
+        self.mean_dff = np.zeros((self.nrows, self.ncols))
 
     @lru_cache(1)
     def init_sff(self):
@@ -168,8 +164,8 @@ class automaton:
         """
         # start with exit's cells
         SFF = np.empty((self.nrows, self.ncols))  # static floor field
-        SFF[:] = np.sqrt(self.nrows ** 2 + self.ncols ** 2)
-
+        MAX_sff = np.sqrt(self.nrows ** 2 + self.ncols ** 2)
+        SFF[:] = MAX_sff
         cells_initialised = []
         for e in self.exit_cells:
             cells_initialised.append(e)
@@ -183,6 +179,8 @@ class automaton:
                     SFF[neighbor] = SFF[cell] + 1
                     cells_initialised.append(neighbor)
 
+        sff_second_max = np.amax(SFF[SFF != np.amax(SFF)])
+        SFF[SFF == MAX_sff] = sff_second_max
         self.sff = SFF
 
     def init_peds(self):
@@ -216,12 +214,11 @@ class automaton:
         - self.dff
         """
 
-        self.sim_time = frame
+        self.frame = frame
         tmp_peds = np.empty_like(self.peds)  # temporary cells
         np.copyto(tmp_peds, self.peds)
         N = np.sum(self.peds)
-        print('t: %3.3d  |  N: %3.3d ' % (self.sim_time, N))
-
+        print('frame: %4.3d\t |   time:  %4.2f\t |  N: %4.3d ' % (self.frame, self.frame*self.DT, N))
         dff_diff = np.zeros((self.nrows, self.ncols))
         if self.shuffle:  # sequential random update
             random.shuffle(self.grid)
@@ -272,10 +269,11 @@ class automaton:
 
         self.update_dff(dff_diff)
         self.peds = tmp_peds
-        if not self.peds.any():  #or self.sim_time > self.MAX_STEPS:
+        if not self.peds.any():
             raise StopIteration()
 
-        self.title.set_text('t: %3.3d  |  N: %3.3d ' % (self.sim_time, N))
+        title = 'frame: %3.3d |   time:  %3.2f |  N: %3.3d ' % (self.frame, self.frame*self.DT, N)
+        self.title.set_text(title)
         self.image.set_array(self.peds+self.walls)
 
 
@@ -284,6 +282,10 @@ class automaton:
             self.step(frame)
         except StopIteration:
             close(self.fig)
+            if self.drawD_avg:
+                setup_dir('dff', self.clean_dirs)
+                self.plot_ff(self.mean_dff/self.frame, "dff")
+
 
         return self.image, #, self.title,
 
@@ -301,6 +303,7 @@ class automaton:
                     self.dff[random.choice(self.get_neighbors((i, j)))] += 1
             assert self.walls[i, j] > -1 or self.dff[i, j] == 0, (self.dff, i, j)
 
+        self.mean_dff += self.dff
 
     def print_logs(self):
         """
@@ -310,16 +313,15 @@ class automaton:
         print("Simulation space (%.2f x %.2f) m^2" % (self.width, self.height))
         print("SFF:  %.2f | DFF: %.2f" % (self.kappaS, self.kappaD))
         print("Diffusion:  %.2f | Decay: %.2f" % (self.diffusion, self.decay))
-        print("Mean Evacuation time: %.2f s, runs: %d" % (self.sim_time * self.dt / self.nruns, self.nruns))
+        print("Mean Evacuation time: %.2f s, runs: %d" % (self.frame * self.dt / self.nruns, self.nruns))
         print("Total Run time: %.2f s" % self.run_time)
-        print("Factor: x%.2f" % (self.dt * self.sim_time / self.run_time))
+        print("Factor: x%.2f" % (self.dt * self.frame / self.run_time))
 
     def plot_peds(self, fig, ax):
         self.fig = fig
         cmap = plt.get_cmap("gray")
         cmap.set_bad(color='b', alpha=0.8)
         N = np.sum(self.peds)
-        print(self.walls)
         im = ax.imshow(self.peds + self.walls, cmap=cmap, interpolation='nearest', vmin=-1, vmax=2, animated=True)
         plt.grid(True, color='k', alpha=0.6)
         plt.yticks(np.arange(1.5, self.peds.shape[0], 1))
@@ -328,9 +330,31 @@ class automaton:
         plt.setp(ax.get_yticklabels(), visible=False)
         ax.tick_params(axis='both', which='both', length=0)
 
-        title = 't: %3.3d  |  N: %3.3d ' % (self.sim_time, N)
+        title = 'frame: %3.3d |   time:  %3.2f |  N: %3.3d ' % (self.frame, self.frame*self.DT, N)
         self.title = ax.text(0.5,1.05,  '%8s' % title,
                         transform=ax.transAxes, ha="center")
+        return im
+
+
+    def plot_ff(self, ff, name):
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        plt.set_cmap('jet')
+        cmap = plt.get_cmap()
+        cmap.set_bad(color='k', alpha=0.8)
+        vect = ff.copy()
+        vect[self.walls < 0] = np.Inf
+        max_value = np.max(ff)
+        min_value = np.min(ff)
+        im = ax.imshow(vect, cmap=cmap, interpolation='nearest', vmin=min_value, vmax=max_value, extent=[0, self.ncols, 0, self.nrows])
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+
+        plt.colorbar(im, cax=cax)
+        figure_name = os.path.join(name, '%s.png'%name)
+        print("plot %s"%figure_name)
+        plt.savefig(figure_name, dpi=600)
+        plt.close()
         return im
 
 def close(fig):
@@ -339,5 +363,5 @@ def close(fig):
 def setup_dir(Dir, clean):
     print("make ", Dir)
     if os.path.exists(Dir) and clean:
-        os.system('rm -rf %s' % Dir) # this is OS specific
+        os.system('rm -rf %s' % Dir) # TODO: this is OS specific
     os.makedirs(Dir, exist_ok=True)
