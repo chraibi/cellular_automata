@@ -53,6 +53,7 @@ class automaton:
         self.grid = list(it.product(range(1, self.nrows - 1), range(1, self.ncols - 1))) + list(self.exit_cells)
         self.walls = None # will be initialised in init_walls()
         # Simulation parameter
+        self.max_frame = 1000
         self.box = args.box # where to distribute peds
         self.nruns = args.nruns
         self.VMAX = 1.2 # in m/s
@@ -60,7 +61,7 @@ class automaton:
         self.frame = 0
         self.run_time = 0
         self.clean_dirs = args.clean # clean up directories
-        if self.box == None:
+        if self.box is None:
             self.box = [1, self.nrows - 2, 1, self.ncols - 2]
 
         self.init_simulation()
@@ -269,7 +270,8 @@ class automaton:
 
         self.update_dff(dff_diff)
         self.peds = tmp_peds
-        if not self.peds.any():
+        if not self.peds.any() or frame >= self.max_frame:
+            print("frame = ", frame)
             raise StopIteration()
 
         title = 'frame: %3.3d |   time:  %3.2f |  N: %3.3d ' % (self.frame, self.frame*self.DT, N)

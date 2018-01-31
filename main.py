@@ -4,14 +4,18 @@
 import time
 import logging
 import argparse
-import matplotlib
+#import matplotlib
 #matplotlib.use('TKAgg')
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import ca
 #######################################################
-logfile = 'log.dat'
+logfile = 'log.txt'
 logging.basicConfig(filename=logfile, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Set up formatting for the movie files
+Writer = animation.writers['ffmpeg']
+writer = Writer(fps=15, metadata=dict(artist='Mohcine Chraibi'), bitrate=1800)
 
 
 def get_parser_args():
@@ -35,8 +39,8 @@ def get_parser_args():
                         help='random shuffle')
     parser.add_argument('-v', '--reverse', action='store_const', const=True, default=False,
                         help='reverse sequential update')
-    parser.add_argument('-l', '--log', type=argparse.FileType('w'), default='log.dat',
-                        help='log file (default log.dat)')
+    parser.add_argument('-l', '--log', type=argparse.FileType('w'), default='log.txt',
+                        help='log file (default log.txt)')
     parser.add_argument('--decay', type=float, default=0.3,
                         help='the decay probability of the Dynamic Floor Field (default 0.2')
     parser.add_argument('--diffusion', type=float, default=0.1,
@@ -54,6 +58,9 @@ def get_parser_args():
 
     parser.add_argument('--parallel', action='store_const', const=True, default=False,
                         help='use multithreading')
+    parser.add_argument('--save', action='store_const', const=True, default=False,
+                        help='save movie')
+
     parser.add_argument('--moore', action='store_const', const=True, default=False,
                         help='use moore neighborhood. Default= Von Neumann')
 
@@ -63,12 +70,23 @@ def get_parser_args():
     _args = parser.parse_args()
     return _args
 
+pause = False
 
+def pause_anim(event):
+    global pause, ani
+    pause ^= True
+    if pause:
+        ani.event_source.stop()
+        print("Animation paused")
+    else:
+        ani.event_source.start()
 
+def stop_anim(event):
+    global ani, fig
+    print("end of simulation")
+    ani.event_source.close()
+    ani.event_source.stop()
 
-# Set up formatting for the movie files
-Writer = animation.writers['ffmpeg']
-writer = Writer(fps=15, metadata=dict(artist='Mohcine Chraibi'), bitrate=1800)
 
 if __name__ == "__main__":
     parser_args = get_parser_args()
@@ -76,7 +94,19 @@ if __name__ == "__main__":
     fig = plt.figure()
     ax = fig.add_subplot(111)
     CA.image = CA.plot_peds(fig, ax)
-    ani = animation.FuncAnimation(fig, CA.update, interval=10, blit=True, repeat=False)
-    fig.canvas.mpl_connect('close_event', ca.close)
-    plt.show()
-    #ani.save('im.mp4', writer=writer)
+
+    ani = animation.FuncAnimation(fig, CA.update, interval=10, blit=True, frames=CA.max_frame+1, repeat=False)
+
+    fig.canvas.mpl_connect('close_event', stop_anim)
+    fig.canvas.mpl_connect('button_press_event', pause_anim)
+    fig.canvas.mpl_connect('key_press_event', pause_anim)
+
+
+    if not parser_args.save:
+        t1 = time.time()
+        plt.show()
+        t2 = time.time()
+        print("Simulation time: %.2f s" % (t2-t1))
+    if  parser_args.save:
+        print("save simulation to movie does not work yet!")
+        #ani.save('ca.mp4', writer=writer)
