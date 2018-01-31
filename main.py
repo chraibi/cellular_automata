@@ -111,4 +111,7 @@ if __name__ == "__main__":
         print("Simulation time: %.2f s" % (t2-t1))
     if  parser_args.save:
         print("save simulation to movie does not work yet!")
+        t1 = time.time()
         ani.save('ca.mp4', writer=writer)
+        t2 = time.time()
+        print("Simulation time: %.2f s" % (t2-t1))
