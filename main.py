@@ -46,7 +46,7 @@ def get_parser_args():
     parser.add_argument('--diffusion', type=float, default=0.1,
                         help='the diffusion probability of the Dynamic Floor Field (default 0.2)')
     parser.add_argument('--maxframe', type=int, default=1000,
-                        help='Max simulation frame  (default 1000')
+                        help='Max simulation frame  (default 1000)')
 
     parser.add_argument('-W', '--width', type=float, default=4.0,
                         help='the width of the simulation area in meter, excluding walls')

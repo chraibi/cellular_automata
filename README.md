@@ -41,6 +41,8 @@ python cellular_automaton.py <optional arguments>
 |  `--parallel`   |                          | use multithreading                                                            |
 |  `--moore`      |                          | use moore neighborhood (*default Von Neumann*)                                |
 |  `--box`        |  from_x to_x from_y to_y | Rectangular box defined by 4 numbers, where agents will be distributed. (*default the whole room*) |
+|`--save` | | Save simulation to a movie|
+|`--maxframe` | MAX_FRAMES | Max frames of simulation (*default 1000*)|
                         
 ## Simulation results
 
