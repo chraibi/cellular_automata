@@ -60,7 +60,7 @@ class automaton:
         self.frame = 0
         self.run_time = 0
         self.clean_dirs = args.clean # clean up directories
-        if self.box == [0, 10, 0, 10]:
+        if self.box == None:
             self.box = [1, self.nrows - 2, 1, self.ncols - 2]
 
         self.init_simulation()

@@ -57,7 +57,7 @@ def get_parser_args():
     parser.add_argument('--moore', action='store_const', const=True, default=False,
                         help='use moore neighborhood. Default= Von Neumann')
 
-    parser.add_argument('--box', type=int, nargs=4, default=[1, 10, 1, 10],
+    parser.add_argument('--box', type=int, nargs=4, default=None,
                         help='Rectangular box, initially populated with agents: from_x, to_x, from_y, to_y. Default: The whole room')
 
     _args = parser.parse_args()
