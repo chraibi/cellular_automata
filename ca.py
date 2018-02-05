@@ -7,6 +7,7 @@ import logging
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import time
 
 class automaton:
     """
@@ -45,10 +46,10 @@ class automaton:
         # number of rows, add ghost cells
         self.nrows = int(self.height / self.CELL_SIZE + 2 + 0.00000001)
         self.exit_cells = frozenset((
-            (self.nrows // 2, self.ncols - 1), (self.nrows // 2 + 1, self.ncols - 1),
-            (self.nrows - 1, self.ncols//2 + 1), (self.nrows - 1, self.ncols//2),
+#            (self.nrows // 2, self.ncols - 1), (self.nrows // 2 + 1, self.ncols - 1),
+#            (self.nrows - 1, self.ncols//2 + 1), (self.nrows - 1, self.ncols//2),
             (0, self.ncols//2 + 1), (1, self.ncols//2),
-            (self.nrows//2 + 1, 0), (self.nrows//2, 0)
+#            (self.nrows//2 + 1, 0), (self.nrows//2, 0)
         ))
         self.grid = list(it.product(range(1, self.nrows - 1), range(1, self.ncols - 1))) + list(self.exit_cells)
         self.walls = None # will be initialised in init_walls()
@@ -214,7 +215,7 @@ class automaton:
         - self.peds
         - self.dff
         """
-
+        t1 = time.time()
         self.frame = frame
         tmp_peds = np.empty_like(self.peds)  # temporary cells
         np.copyto(tmp_peds, self.peds)
@@ -270,6 +271,9 @@ class automaton:
 
         self.update_dff(dff_diff)
         self.peds = tmp_peds
+        t2 = time.time()
+        self.run_time += t2 - t1
+
         if not self.peds.any() or frame >= self.max_frame:
             print("frame = ", frame)
             raise StopIteration()
@@ -314,10 +318,10 @@ class automaton:
         print("Simulation of %d pedestrians" % self.npeds)
         print("Simulation space (%.2f x %.2f) m^2" % (self.width, self.height))
         print("SFF:  %.2f | DFF: %.2f" % (self.kappaS, self.kappaD))
-        print("Diffusion:  %.2f | Decay: %.2f" % (self.diffusion, self.decay))
-        print("Mean Evacuation time: %.2f s, runs: %d" % (self.frame * self.dt / self.nruns, self.nruns))
+        print("Diffusion:  %.2f | Decay: %.2f" % (self.alpha, self.delta))
+        print("Mean Evacuation time: %.2f s, runs: %d" % (self.frame * self.DT / self.nruns, self.nruns))
         print("Total Run time: %.2f s" % self.run_time)
-        print("Factor: x%.2f" % (self.dt * self.frame / self.run_time))
+        print("Factor: x%.2f" % (self.DT * self.frame / self.run_time))
 
     def plot_peds(self, fig, ax):
         self.fig = fig

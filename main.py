@@ -115,3 +115,5 @@ if __name__ == "__main__":
         t2 = time.time()
         print("Simulation time: %.2f s" % (t2-t1))
         print(">> saved: ca.mp4")
+
+    CA.print_logs()
