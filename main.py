@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 # from multiprocessing.pool import Pool
-import time
 import logging
 import argparse
 #import matplotlib
@@ -96,8 +95,7 @@ if __name__ == "__main__":
     fig = plt.figure()
     ax = fig.add_subplot(111)
     CA.image = CA.plot_peds(fig, ax)
-
-    ani = animation.FuncAnimation(fig, CA.update, interval=10, blit=True, frames=CA.max_frame+1, repeat=False)
+    ani = animation.FuncAnimation(fig, CA.update, interval=10, blit=True, frames=CA.max_frame+1, repeat=True)
 
     fig.canvas.mpl_connect('close_event', stop_anim)
     fig.canvas.mpl_connect('button_press_event', pause_anim)
@@ -105,15 +103,9 @@ if __name__ == "__main__":
 
 
     if not parser_args.save:
-        t1 = time.time()
         plt.show()
-        t2 = time.time()
-        print("Simulation time: %.2f s" % (t2-t1))
     if  parser_args.save:
-        t1 = time.time()
         ani.save('ca.mp4', writer=writer)
-        t2 = time.time()
-        print("Simulation time: %.2f s" % (t2-t1))
         print(">> saved: ca.mp4")
 
     CA.print_logs()

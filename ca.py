@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import time
 
+SEED = 100
 class automaton:
     """
     init class defining system
@@ -54,6 +55,7 @@ class automaton:
         self.grid = list(it.product(range(1, self.nrows - 1), range(1, self.ncols - 1))) + list(self.exit_cells)
         self.walls = None # will be initialised in init_walls()
         # Simulation parameter
+        self.seed = True # TODO: parse
         self.max_frame = args.maxframe
         self.box = args.box # where to distribute peds
         self.nruns = args.nruns
@@ -69,6 +71,9 @@ class automaton:
         # --------- init variables -------------
 
     def init_simulation(self):
+        if self.seed:
+            np.random.seed(SEED)
+
         self.check_box()
         self.check_N_pedestrians()
         self.init_obstacles()
@@ -345,7 +350,8 @@ class automaton:
     def plot_ff(self, ff, name):
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        plt.set_cmap('jet')
+        #plt.set_cmap('jet')
+        plt.set_cmap('Greys')
         cmap = plt.get_cmap()
         cmap.set_bad(color='k', alpha=0.8)
         vect = ff.copy()
@@ -355,8 +361,10 @@ class automaton:
         im = ax.imshow(vect, cmap=cmap, interpolation='nearest', vmin=min_value, vmax=max_value, extent=[0, self.ncols, 0, self.nrows])
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
-
-        plt.colorbar(im, cax=cax)
+        ax.tick_params(axis='both', which='both', length=0)
+        ax.axes.get_xaxis().set_ticks([])
+        ax.axes.get_yaxis().set_ticks([])
+        plt.colorbar(im, cax=cax, ticks=[min_value, max_value])
         figure_name = os.path.join(name, '%s.png'%name)
         print("plot %s"%figure_name)
         plt.savefig(figure_name, dpi=600)
